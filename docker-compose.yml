@@ -1,0 +1,309 @@
+name: process-digital-twin
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: process_digital_twin_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-123456}
+      MYSQL_DATABASE: ga_tools
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./00_刀具参数优化系统/ga_tools.sql:/docker-entrypoint-initdb.d/01_init.sql
+      # - ./services/device-monitor/sql/init.sql:/docker-entrypoint-initdb.d/02_device_monitor.sql
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # InfluxDB 时序数据库
+  influxdb:
+    image: influxdb:2.7
+    container_name: process_digital_twin_influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-influxdb123}
+      DOCKER_INFLUXDB_INIT_ORG: digital_twin
+      DOCKER_INFLUXDB_INIT_BUCKET: device_data
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-my-super-secret-auth-token}
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: process_digital_twin_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # RabbitMQ 消息队列
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: process_digital_twin_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq123}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 参数优化服务
+  parameter-optimization:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile
+    container_name: process_digital_twin_optimization
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      DB_NAME: ga_tools
+      DB_CHARSET: utf8mb4
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      ENVIRONMENT: production
+    ports:
+      - "5007:8000"
+    volumes:
+      - ./services/parameter-optimization/src:/app/src
+      - ./services/parameter-optimization/run.py:/app/run.py
+      - optimization_logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:8000/api/v1/optimization/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # 设备监控微服务
+  device-monitor:
+    build:
+      context: ./services/device-monitor
+      dockerfile: Dockerfile
+    container_name: process_digital_twin_device_monitor
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      DB_NAME: ga_tools
+      DB_CHARSET: utf8mb4
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN:-my-super-secret-auth-token}
+      INFLUXDB_ORG: digital_twin
+      INFLUXDB_BUCKET: device_data
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq123}
+      OPCUA_SERVER_URL: opc.tcp://localhost:4840
+      APP_NAME: Device Monitor Service
+      APP_VERSION: 1.0.0
+      ENVIRONMENT: production
+    ports:
+      - "5008:5008"
+    volumes:
+      - ./services/device-monitor/src:/app/src
+      - ./services/device-monitor/run.py:/app/run.py
+      - device_monitor_logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:5008/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # 报警管理微服务
+  alarm-management:
+    build:
+      context: ./services/alarm-management
+      dockerfile: Dockerfile
+    container_name: process_digital_twin_alarm_management
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      DB_NAME: ga_tools
+      DB_CHARSET: utf8mb4
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq123}
+      SMTP_HOST: ${SMTP_HOST:-smtp.example.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ALIYUN_ACCESS_KEY_ID: ${ALIYUN_ACCESS_KEY_ID:-}
+      ALIYUN_ACCESS_KEY_SECRET: ${ALIYUN_ACCESS_KEY_SECRET:-}
+      ALIYUN_SMS_SIGN_NAME: ${ALIYUN_SMS_SIGN_NAME:-}
+      ALIYUN_SMS_TEMPLATE_CODE: ${ALIYUN_SMS_TEMPLATE_CODE:-}
+      APP_NAME: Alarm Management Service
+      APP_VERSION: 1.0.0
+      ENVIRONMENT: production
+    ports:
+      - "5009:5009"
+    volumes:
+      - ./services/alarm-management/src:/app/src
+      - ./services/alarm-management/run.py:/app/run.py
+      - alarm_management_logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:5009/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # 质量追溯微服务
+  quality-trace:
+    build:
+      context: ./services/quality-trace
+      dockerfile: Dockerfile
+    container_name: process_digital_twin_quality_trace
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      DB_NAME: ga_tools
+      DB_CHARSET: utf8mb4
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-rabbitmq123}
+      APP_NAME: Quality Trace Service
+      APP_VERSION: 1.0.0
+      ENVIRONMENT: production
+    ports:
+      - "5010:5010"
+    volumes:
+      - ./services/quality-trace/src:/app/src
+      - ./services/quality-trace/run.py:/app/run.py
+      - quality_trace_logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - digital_twin_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1:5010/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # 前端 Web 应用
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: process_digital_twin_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - parameter-optimization
+      - device-monitor
+    networks:
+      - digital_twin_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mysql_data:
+  influxdb_data:
+  influxdb_config:
+  redis_data:
+  rabbitmq_data:
+  optimization_logs:
+  device_monitor_logs:
+  alarm_management_logs:
+  quality_trace_logs:
+
+networks:
+  digital_twin_network:
+    driver: bridge

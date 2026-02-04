@@ -1,0 +1,15 @@
+@echo off
+chcp 65001 >nul
+echo ================================================================
+echo   Initialize Test Data
+echo ================================================================
+echo.
+echo Changing to script directory...
+cd /d "%~dp0"
+echo.
+echo Initializing test data...
+echo.
+
+powershell -ExecutionPolicy Bypass -File "%~dp0init-data.ps1"
+
+pause
