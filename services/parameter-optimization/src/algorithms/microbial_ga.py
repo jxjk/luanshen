@@ -169,11 +169,13 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
         pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / constraints.machine_efficiency
         tnm = pmot * PhysicalConstants.TORQUE_FACTOR / (n + 1e-7)
 
-        # 进给力计算（铣削）- 需要在kc计算之后
-        main_cutting_force = q * kc  # 主切削力 (N)
-        # 进给力系数取决于前角和主偏角
-        feed_force_coeff = 0.3 + 0.2 * (1.0 - constraints.rake_angle / 20.0)
-        ff = main_cutting_force * feed_force_coeff  # 进给力 (N)
+        # 进给力计算（铣削）- 修正公式
+        # 主切削力 Fc = kc × ap × ae / (齿数) (N)
+        # 进给力 Ff = Fc × 系数 (取决于前角和主偏角)
+        cutting_force = kc * ap * ae / constraints.tool_teeth  # 主切削力 (N)
+        # 进给力系数：前角越大，进给力越小；主偏角越大，进给力越小
+        feed_force_coeff = 0.3 + 0.2 * (1.0 - constraints.rake_angle / 20.0) * (90.0 / constraints.main_cutting_angle)
+        ff = cutting_force * feed_force_coeff  # 进给力 (N)
         
     elif constraints.machining_method == MachiningMethod.DRILLING:
         q = f * np.pi * constraints.tool_diameter ** 2 / 4000 + 1e-7
@@ -244,17 +246,25 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
     violations_count['feed_force'] = np.sum(mask_ff)
     penalty[mask_ff] += (ff[mask_ff] - constraints.max_feed_force) ** 2 * ConstraintPenalty.FEED_FORCE
 
-    # 计算刀具挠度（仅铣削）- 暂时禁用约束检查
+    # 计算刀具挠度（仅铣削）- 启用约束检查
     if constraints.machining_method == MachiningMethod.MILLING:
         # 截面惯性矩: I = π * D⁴ / 64
         moment_of_inertia = 3.14159 * (constraints.tool_diameter ** 4) / 64.0
         # 挠度: δ = (F * L³) / (3 * E * I)
         tool_deflection = (ff * (constraints.tool_overhang_length ** 3)) / (3.0 * constraints.tool_elastic_modulus * moment_of_inertia)
-        # 挠度约束检查 - 暂时注释掉
-        # mask_deflection = tool_deflection > constraints.max_tool_deflection
-        # violations_count['tool_deflection'] = np.sum(mask_deflection)
-        # penalty[mask_deflection] += (tool_deflection[mask_deflection] - constraints.max_tool_deflection) ** 2 * ConstraintPenalty.FEED_FORCE
-        violations_count['tool_deflection'] = 0
+        # 挠度约束检查 - 使用约束中的max_tool_deflection
+        mask_deflection = tool_deflection > constraints.max_tool_deflection
+        violations_count['tool_deflection'] = np.sum(mask_deflection)
+        penalty[mask_deflection] += (tool_deflection[mask_deflection] - constraints.max_tool_deflection) ** 2 * ConstraintPenalty.FEED_FORCE
+
+        # 调试：记录挠度参数
+        if np.sum(mask_deflection) > 0:
+            import logging
+            logger = logging.getLogger(__name__)
+            max_deflection_idx = np.argmax(tool_deflection)
+            logger.warning(f"挠度调试: L={constraints.tool_overhang_length:.1f}, E={constraints.tool_elastic_modulus:.0f}, "
+                          f"max_deflection={constraints.max_tool_deflection:.3f}, "
+                          f"ff_max={ff[max_deflection_idx]:.1f}, deflection_max={tool_deflection[max_deflection_idx]:.3f}")
 
     mask_fz = fz > constraints.max_feed_per_tooth
     violations_count['feed_per_tooth'] = np.sum(mask_fz)
@@ -609,14 +619,13 @@ class MicrobialGeneticAlgorithm:
         pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / self.constraints.machine_efficiency
         tnm = pmot * PhysicalConstants.TORQUE_FACTOR / (n + 1e-7)
 
-        # 进给力计算（铣削）
-        # 进给力通常与主切削力成比例，取决于刀具角度和切削参数
-        # 根据ISO切削力模型，进给力 Ff ≈ Fc * (0.3 ~ 0.6)
-        # Fc = q * kc（主切削力）
-        main_cutting_force = q * kc  # 主切削力 (N)
-        # 进给力系数取决于前角和主偏角
-        feed_force_coeff = 0.3 + 0.2 * (1.0 - self.constraints.rake_angle / 20.0)  # 前角越大，进给力越小
-        ff = main_cutting_force * feed_force_coeff  # 进给力 (N)
+        # 进给力计算（铣削）- 修正公式
+        # 主切削力 Fc = kc × ap × ae / (齿数) (N)
+        # 进给力 Ff = Fc × 系数 (取决于前角和主偏角)
+        cutting_force = kc * ap * ae / self.constraints.tool_teeth  # 主切削力 (N)
+        # 进给力系数：前角越大，进给力越小；主偏角越大，进给力越小
+        feed_force_coeff = 0.3 + 0.2 * (1.0 - self.constraints.rake_angle / 20.0) * (90.0 / self.constraints.main_cutting_angle)
+        ff = cutting_force * feed_force_coeff  # 进给力 (N)
 
         # 刀具挠度计算（悬臂梁模型）
         # 截面惯性矩: I = π * D⁴ / 64

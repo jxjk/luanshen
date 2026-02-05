@@ -125,8 +125,8 @@ async def optimize_parameters(
 
         # 刀具挠度参数
         tool_elastic_modulus=tool.elastic_modulus if tool.elastic_modulus else 630000.0,
-        tool_overhang_length=tool.overhang_length if tool.overhang_length else 80.0,
-        max_tool_deflection=0.5,  # 最大允许挠度 0.5mm（调整为更合理的值）
+        tool_overhang_length=tool.overhang_length if tool.overhang_length else 40.0,
+        max_tool_deflection=1.0,  # 最大允许挠度 1.0mm（粗加工）
 
         max_feed_per_tooth=tool.fz_max,
         max_cutting_speed=tool.vc_max,
