@@ -134,6 +134,15 @@ class Settings(BaseSettings):
     log_format: str = Field(default="%(asctime)s - %(name)s - %(levelname)s - %(message)s", description="日志格式")
     log_max_bytes: int = Field(default=10485760, description="日志文件最大大小(10MB)")
     log_backup_count: int = Field(default=5, description="日志文件备份数量")
+    
+    # DeepSeek LLM 配置
+    deepseek_api_key: Optional[str] = Field(default=None, description="DeepSeek API Key")
+    deepseek_base_url: str = Field(default="https://api.deepseek.com/v1", description="DeepSeek API 基础 URL")
+    deepseek_model: str = Field(default="deepseek-chat", description="DeepSeek 模型名称")
+    deepseek_temperature: float = Field(default=0.7, description="DeepSeek 温度参数")
+    deepseek_max_tokens: int = Field(default=2000, description="DeepSeek 最大令牌数")
+    deepseek_timeout: int = Field(default=30, description="DeepSeek 请求超时时间(秒)")
+    deepseek_enabled: bool = Field(default=True, description="是否启用 DeepSeek LLM")
 
 
 # 全局配置实例

@@ -122,12 +122,12 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
     feed = feed_vals * 8000  # 旧版本：直接乘以 MAX_FEED
     
     cut_depth_vals = np.dot(cut_depth_bits, cut_depth_weights) / (2**7 - 1)
-    cut_depth = cut_depth_vals * 1.0  # 旧版本：直接乘以 1.0
+    cut_depth = cut_depth_vals * constraints.max_cut_depth  # 修复：使用配置的最大切深而不是硬编码的1.0
     
     # 参数边界检查
     n = np.maximum(speed, 1.0)
     f = np.maximum(feed, 0.1)
-    ap = cut_depth * constraints.max_cut_depth
+    ap = cut_depth  # 修复：cut_depth 已经是实际切深（0-max_cut_depth），不需要再乘
     ae = constraints.cut_width
     
     # 向量化计算
@@ -155,9 +155,10 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
         if ae_ratio <= 0.3:
             hm = safe_fz * np.sqrt(ae_ratio)
         else:
-            # 确保asin输入在有效范围内
+            # 修复：使用正确的变量名
             ratio = np.clip((ae - 0.5 * constraints.tool_diameter) / (0.5 * constraints.tool_diameter), -1, 1)
-            fs = 90 + np.arcsin(ratio) * 180 * np.pi
+            # fs 应该是角度（度），不是弧度
+            fs = 90 + np.arcsin(ratio) * 180 / np.pi  # 修复：将弧度转换为角度
             hm = 1147 * safe_fz * np.sin(constraints.main_cutting_angle * np.pi / 180) * ae_ratio / fs
         
         kc = (1 - 0.01 * constraints.rake_angle) * constraints.material_coefficient / (hm ** constraints.material_slope + 1e-3)
@@ -202,26 +203,67 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
     # 向量化计算惩罚
     penalty = np.zeros(N)
     
+    # 计算违规数量（用于调试）
+    violations_count = {
+        'power': 0,
+        'torque': 0,
+        'tool_life': 0,
+        'surface_roughness': 0,
+        'feed_force': 0,
+        'feed_per_tooth': 0,
+        'cutting_speed': 0
+    }
+    
     mask_lft = lft < constraints.min_tool_life
+    violations_count['tool_life'] = np.sum(mask_lft)
     penalty[mask_lft] += (constraints.min_tool_life - lft[mask_lft]) ** 2 * ConstraintPenalty.TOOL_LIFE
     
     mask_power = pmot > constraints.max_power
+    violations_count['power'] = np.sum(mask_power)
     penalty[mask_power] += (pmot[mask_power] - constraints.max_power) ** 2 * ConstraintPenalty.POWER
     
     mask_torque = tnm > constraints.max_torque
+    violations_count['torque'] = np.sum(mask_torque)
     penalty[mask_torque] += (tnm[mask_torque] - constraints.max_torque) ** 2 * ConstraintPenalty.TORQUE
     
     mask_rz = rz > constraints.min_surface_roughness
+    violations_count['surface_roughness'] = np.sum(mask_rz)
     penalty[mask_rz] += (rz[mask_rz] - constraints.min_surface_roughness) ** 2 * ConstraintPenalty.SURFACE_ROUGHNESS
     
     mask_ff = ff > constraints.max_feed_force
+    violations_count['feed_force'] = np.sum(mask_ff)
     penalty[mask_ff] += (ff[mask_ff] - constraints.max_feed_force) ** 2 * ConstraintPenalty.FEED_FORCE
     
     mask_fz = fz > constraints.max_feed_per_tooth
-    penalty[mask_fz] += (fz[mask_fz] - constraints.max_feed_per_tooth) ** 2
+    violations_count['feed_per_tooth'] = np.sum(mask_fz)
+    penalty[mask_fz] += (fz[mask_fz] - constraints.max_feed_per_tooth) ** 2 * ConstraintPenalty.MAX_FEED
     
     mask_vc = vc > constraints.max_cutting_speed
-    penalty[mask_vc] += (vc[mask_vc] - constraints.max_cutting_speed) ** 2
+    violations_count['cutting_speed'] = np.sum(mask_vc)
+    penalty[mask_vc] += (vc[mask_vc] - constraints.max_cutting_speed) ** 2 * ConstraintPenalty.MAX_SPEED
+    
+    # 记录违规统计（用于调试）
+    total_violations = sum(violations_count.values())
+    if total_violations > 0:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"向量化评估: 发现 {total_violations} 个约束违规 - "
+                      f"功率:{violations_count['power']}, 扭矩:{violations_count['torque']}, "
+                      f"刀具寿命:{violations_count['tool_life']}, 粗糙度:{violations_count['surface_roughness']}, "
+                      f"进给力:{violations_count['feed_force']}, 每齿进给:{violations_count['feed_per_tooth']}, "
+                      f"线速度:{violations_count['cutting_speed']}")
+
+        # 调试：记录最优个体的关键参数（仅当存在违反功率/扭矩约束时）
+        if violations_count['power'] > 0 or violations_count['torque'] > 0:
+            best_idx = np.argmin(penalty)
+            logger.warning(f"调试 - 最优个体: n={n[best_idx]:.1f}, f={f[best_idx]:.1f}, ap={ap[best_idx]:.2f}, ae={ae:.2f}")
+            logger.warning(f"调试 - 物理参数: hm={hm[best_idx]:.4f}, kc={kc[best_idx]:.1f}, q={q[best_idx]:.2f}, pmot={pmot[best_idx]:.2f}, tnm={tnm[best_idx]:.2f}")
+            logger.warning(f"调试 - 约束: 最大功率={constraints.max_power}, 最大扭矩={constraints.max_torque}, 刀具直径={constraints.tool_diameter}")
+            if constraints.machining_method == MachiningMethod.MILLING:
+                ae_ratio = ae / constraints.tool_diameter
+                ratio = np.clip((ae - 0.5 * constraints.tool_diameter) / (0.5 * constraints.tool_diameter), -1, 1)
+                fs = 90 + np.arcsin(ratio) * 180 / np.pi
+                logger.warning(f"调试 - ae_ratio={ae_ratio:.4f}, fs={fs:.2f}")
     
     fitnesses = q - 1e29 * penalty
     
@@ -269,7 +311,7 @@ def evaluate_batch(args: Tuple[np.ndarray, int, Any]) -> Tuple[int, np.ndarray, 
     # 计算加工参数
     n = speed
     f = feed
-    ap = cut_depth * constraints.max_cut_depth
+    ap = cut_depth  # 修复：cut_depth 已经是实际切深，不需要再乘
     ae = constraints.cut_width
     
     # 参数边界检查：确保最小转速和进给
@@ -372,10 +414,10 @@ def evaluate_batch(args: Tuple[np.ndarray, int, Any]) -> Tuple[int, np.ndarray, 
         penalty += (ff - constraints.max_feed_force) ** 2 * ConstraintPenalty.FEED_FORCE
     
     if fz > constraints.max_feed_per_tooth:
-        penalty += (fz - constraints.max_feed_per_tooth) ** 2
+        penalty += (fz - constraints.max_feed_per_tooth) ** 2 * ConstraintPenalty.MAX_FEED
     
     if vc > constraints.max_cutting_speed:
-        penalty += (vc - constraints.max_cutting_speed) ** 2
+        penalty += (vc - constraints.max_cutting_speed) ** 2 * ConstraintPenalty.MAX_SPEED
     
     fitness = q - 1e29 * penalty
     
@@ -470,7 +512,13 @@ class MicrobialGeneticAlgorithm:
         feed = feed_val * self.config.feed_bound[1]  # 旧版本直接乘以边界上限
 
         cut_depth_val = sum(int(bit) * (2 ** (len(cut_depth_bits) - 1 - i)) for i, bit in enumerate(cut_depth_bits)) / (2**7 - 1)
-        cut_depth = cut_depth_val * self.config.cut_depth_bound[1]  # 旧版本直接乘以边界上限
+        # 修复：使用约束对象的最大切深，而不是config的边界上限
+        cut_depth = cut_depth_val * self.constraints.max_cut_depth
+
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"调试 - _translate_dna: speed={speed:.1f}, feed={feed:.1f}, cut_depth={cut_depth:.2f}")
+        logger.warning(f"调试 - _translate_dna边界: cut_depth_bound={self.config.cut_depth_bound}, max_cut_depth={self.constraints.max_cut_depth}")
 
         return {"speed": speed, "feed": feed, "cut_depth": cut_depth}
 
@@ -486,7 +534,7 @@ class MicrobialGeneticAlgorithm:
         """
         n = params["speed"]
         f = params["feed"]
-        ap = params["cut_depth"] * self.constraints.max_cut_depth
+        ap = params["cut_depth"]  # 修复：params["cut_depth"] 已经是实际切深，不需要再乘
         ae = self.constraints.cut_width
         
         # 每齿进给量
@@ -528,7 +576,8 @@ class MicrobialGeneticAlgorithm:
         else:
             # 确保 asin 的输入在有效范围内 [-1, 1]
             ratio = min(1.0, max(-1.0, (ae - 0.5 * self.constraints.tool_diameter) / (0.5 * self.constraints.tool_diameter)))
-            fs = 90 + math.asin(ratio) * 180 * math.pi
+            # 修复：fs 应该是角度（度），不是弧度
+            fs = 90 + math.asin(ratio) * 180 / math.pi
             hm = 1147 * fz * math.sin(self.constraints.main_cutting_angle * math.pi / 180) * (ae / self.constraints.tool_diameter) / fs
         
         # 单位切削力
@@ -537,7 +586,12 @@ class MicrobialGeneticAlgorithm:
         # 功率和扭矩
         pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / self.constraints.machine_efficiency
         tnm = pmot * PhysicalConstants.TORQUE_FACTOR / (n + 1e-7)
-        
+
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"调试 - _calculate_milling_parameters返回: n={n:.1f}, f={f:.1f}, ap={ap:.2f}, ae={ae:.2f}")
+        logger.warning(f"调试 - _calculate_milling_parameters物理: hm={hm:.4f}, kc={kc:.1f}, q={q:.2f}, pmot={pmot:.2f}, tnm={tnm:.2f}")
+
         return {
             "speed": n,
             "feed": f,
@@ -693,12 +747,12 @@ class MicrobialGeneticAlgorithm:
         # 每齿进给量约束
         fz = machining_params["feed_per_tooth"]
         if fz > self.constraints.max_feed_per_tooth:
-            penalty += (fz - self.constraints.max_feed_per_tooth) ** 2
+            penalty += (fz - self.constraints.max_feed_per_tooth) ** 2 * ConstraintPenalty.MAX_FEED
         
         # 线速度约束
         vc = machining_params["cutting_speed"]
         if vc > self.constraints.max_cutting_speed:
-            penalty += (vc - self.constraints.max_cutting_speed) ** 2
+            penalty += (vc - self.constraints.max_cutting_speed) ** 2 * ConstraintPenalty.MAX_SPEED
         
         # 目标函数：材料去除率减去惩罚
         fitness = q - 1e29 * penalty
@@ -814,15 +868,21 @@ class MicrobialGeneticAlgorithm:
                 if self.stagnation_count >= self.config.early_stop_generations:
                     print(f"Early stop at generation {generation} (no improvement for {self.stagnation_count} generations)")
                     break
-                
+
                 if generation % 10 == 0:
                     print(f"Generation {generation}: Best fitness = {self.best_fitness:.6f}, Population size = {self.config.population_size}")
-            
+
             # 获取最优参数
             best_params = self._translate_dna(self.best_individual)
             best_machining_params = self._calculate_machining_parameters(best_params)
-            
+
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"调试 - 最终返回: pmot={best_machining_params['power']:.2f}, tnm={best_machining_params['torque']:.2f}")
+            logger.warning(f"调试 - 最终参数: n={best_machining_params['speed']:.1f}, f={best_machining_params['feed']:.1f}, ap={best_machining_params['cut_depth']:.2f}")
+
             return best_machining_params, self.best_fitness
+
         except Exception as e:
             error_msg = f"Evolution error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
             print(error_msg)

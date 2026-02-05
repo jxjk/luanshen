@@ -70,6 +70,7 @@
 
 **API 路由**：
 - `/api/v1/device/` - 设备监控相关接口
+- `/api/v1/monitoring/` - 监控统计接口
 - `/ws/device/{device_id}` - WebSocket 实时数据推送
 
 #### 3. 报警管理服务（alarm-management）
@@ -288,16 +289,17 @@ D:\Users\00596\Desktop\工艺数字孪生\
 ### 后端技术栈（所有微服务）
 
 #### 通用技术栈
-- **Python 3.11+** - 主要开发语言
-- **FastAPI 0.104.1** - 高性能 Web 框架
-- **SQLAlchemy 2.0.23** - Python SQL 工具包和 ORM
-- **PyMySQL 1.1.0** - MySQL 数据库驱动
-- **Pydantic 2.5.2** - 数据验证和设置管理
-- **Pydantic Settings 2.1.0** - 配置管理
-- **Uvicorn 0.24.0** - ASGI 服务器
-- **python-jose 3.3.0** - JWT 令牌处理
-- **passlib 1.7.4** - 密码加密（bcrypt）
-- **Loguru 0.7.2** - 日志管理
+- **Python 3.9+** - 主要开发语言
+- **FastAPI 0.104.0+** - 高性能 Web 框架
+- **SQLAlchemy 2.0.23+** - Python SQL 工具包和 ORM
+- **PyMySQL 1.1.0+** - MySQL 数据库驱动
+- **Cryptography 41.0.7+** - 加密支持
+- **Pydantic 2.5.0+** - 数据验证和设置管理
+- **Pydantic Settings 2.1.0+** - 配置管理
+- **Uvicorn 0.24.0+** - ASGI 服务器
+- **python-jose 3.3.0+** - JWT 令牌处理
+- **passlib 1.7.4+** - 密码加密（bcrypt）
+- **python-multipart 0.0.6+** - 多部分表单支持
 
 #### 参数优化服务特有
 - **NumPy 1.24.0+** - 数值计算库（向量化优化）✅ UPDATED
@@ -499,6 +501,26 @@ export const materialService = {
 // src/services/pdfService.ts - PDF 导出服务 ✨ NEW
 ```
 
+### Vite 代理配置
+
+开发环境下的 API 请求代理配置：
+
+```typescript
+// vite.config.ts
+server: {
+  port: 3000,
+  proxy: {
+    '/api/v1/alarms': { target: 'http://localhost:5009', changeOrigin: true },
+    '/api/v1/notifications': { target: 'http://localhost:5009', changeOrigin: true },
+    '/api/v1/device': { target: 'http://localhost:5008', changeOrigin: true },
+    '/api/v1/monitoring': { target: 'http://localhost:5008', changeOrigin: true },
+    '/api/v1/quality': { target: 'http://localhost:5010', changeOrigin: true },
+    '/api/v1/batches': { target: 'http://localhost:5010', changeOrigin: true },
+    '/api': { target: 'http://localhost:5007', changeOrigin: true },
+  },
+}
+```
+
 ## 前端页面功能
 
 ### 1. 车间视图（WorkshopPage）
@@ -630,31 +652,31 @@ export const materialService = {
 
 **1. 启动所有服务**
 ```batch
-# 使用批处理文件（Windows）- 最简单
+REM 使用批处理文件（Windows）- 最简单
 一键部署.bat
 
-# 或使用 PowerShell
+REM 或使用 PowerShell
 .\deploy.ps1
 
-# 或使用 Docker Compose
+REM 或使用 Docker Compose
 docker-compose up -d --build
 ```
 
 **2. 查看服务状态**
 ```batch
-# 使用批处理文件
+REM 使用批处理文件
 查看状态.bat
 
-# 或使用 Docker Compose
+REM 或使用 Docker Compose
 docker-compose ps
 ```
 
 **3. 初始化测试数据**
 ```batch
-# 使用批处理文件
+REM 使用批处理文件
 初始化数据.bat
 
-# 或使用 PowerShell
+REM 或使用 PowerShell
 .\init-data.ps1
 ```
 
@@ -1084,7 +1106,7 @@ REM 或使用 Docker Compose
 docker-compose ps
 ```
 
-当前部署状态（2026-02-04）：
+当前部署状态（2026-02-05）：
 - ✅ MySQL（3307端口）- 健康运行
 - ✅ InfluxDB（8086端口）- 健康运行
 - ✅ Redis（6379端口）- 健康运行
@@ -1324,8 +1346,8 @@ A: 优化结果包含以下字段：
 
 ---
 
-**文档版本**：v12.0
-**最后更新**：2026-02-04
+**文档版本**：v13.0
+**最后更新**：2026-02-05
 **维护者**：工艺数字孪生项目团队
 
 ## 版本历史
@@ -1344,3 +1366,4 @@ A: 优化结果包含以下字段：
 | v10.0 | 2026-02-03 | 新增 PDF 导出功能；参数优化页面支持生成格式化 PDF 报告；添加 jsPDF 和 html2canvas 依赖；新增 pdfService 服务；添加 PDF导出功能说明文档；更新常见问题 |
 | v11.0 | 2026-02-04 | 更新 Nginx 反向代理配置（生产环境支持端口80）；修复算法返回字段（添加speed, feed, cut_depth, cut_width）；添加 NumPy 向量化计算优化说明；更新超时配置（120s）；添加算法相关常见问题 |
 | v12.0 | 2026-02-04 | **成功部署到本机 Docker 环境**；修复算法 DNA 解码和线速度计算问题；更新项目部署状态；添加算法验证相关问题；更新所有服务端口映射 |
+| v13.0 | 2026-02-05 | 更新 Python 版本要求（3.9+）；添加 cryptography 依赖；完善项目结构说明；更新部署状态日期；补充 Vite 代理配置文档 |
