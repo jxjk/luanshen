@@ -242,25 +242,64 @@ class ConstraintChecker:
         return len(violations) == 0, violations
     
     def _calculate_cutting_force(
-        self, 
-        params: Dict[str, float], 
+        self,
+        params: Dict[str, float],
         tool_params: Dict[str, float]
     ) -> float:
         """计算切削力"""
         feed = params.get("feed", 0)
         cut_depth = params.get("cut_depth", 0)
         cut_width = params.get("cut_width", 0)
-        
+
         # 基于材料切削力系数
         force_coefficient = tool_params.get("cutting_force_coefficient", 2000)
-        
+
         force = (
-            force_coefficient * 
-            cut_depth * cut_width * 
+            force_coefficient *
+            cut_depth * cut_width *
             (feed / 1000) ** 0.5
         )
-        
+
         return force
+
+    def calculate_tool_deflection(
+        self,
+        cutting_force: float,
+        tool_diameter: float,
+        overhang_length: float,
+        elastic_modulus: float
+    ) -> float:
+        """
+        计算刀具挠度（弯曲变形）
+
+        使用悬臂梁模型：
+        δ = (F * L³) / (3 * E * I)
+        其中：
+        - δ: 挠度 (mm)
+        - F: 切削力 (N)
+        - L: 悬伸长度 (mm)
+        - E: 弹性模量 (MPa = N/mm²)
+        - I: 截面惯性矩 (mm⁴)
+
+        对于圆形截面：
+        I = π * D⁴ / 64
+
+        Args:
+            cutting_force: 切削力 (N)
+            tool_diameter: 刀具直径 (mm)
+            overhang_length: 悬伸长度 (mm)
+            elastic_modulus: 弹性模量 (MPa)
+
+        Returns:
+            挠度 (mm)
+        """
+        # 计算截面惯性矩
+        moment_of_inertia = 3.14159 * (tool_diameter ** 4) / 64.0
+
+        # 计算挠度
+        deflection = (cutting_force * (overhang_length ** 3)) / (3.0 * elastic_modulus * moment_of_inertia)
+
+        return deflection
     
     def calculate_penalty(self, params: Dict[str, float]) -> float:
         """

@@ -128,6 +128,7 @@ class ConstraintPenalty:
     FEED_FORCE = 1e29    # 进给力约束惩罚系数（修复：从1e6改为1e29）
     MAX_FEED = 1e29      # 最大进给惩罚系数（修复：从1改为1e29）
     MAX_SPEED = 1e29     # 最大转速惩罚系数（修复：从1改为1e29）
+    TOOL_DEFLECTION = 1e29  # 刀具挠度约束惩罚系数
 
 
 # 物理计算常量

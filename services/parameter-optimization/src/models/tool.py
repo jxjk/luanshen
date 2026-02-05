@@ -25,6 +25,8 @@ class Tool(Base):
     qian_jiao = Column(Float, nullable=False, name="qianJiao", comment="前角")
     zhu_pian_jiao = Column(Float, nullable=False, name="zhuPianJiao", comment="主偏角")
     dao_jian_r = Column(Float, nullable=False, name="daoJianR", comment="刀尖半径 mm")
+    elastic_modulus = Column(Float, nullable=True, name="elastic_modulus", comment="弹性模量 MPa")
+    overhang_length = Column(Float, nullable=True, name="overhang_length", comment="悬伸长度 mm")
     
     # 性能参数
     ff_max = Column(Integer, nullable=True, name="Ff_max", comment="最大进给力 N")
@@ -58,6 +60,8 @@ class Tool(Base):
             "daoJianR": self.dao_jian_r,
             "zhuPianJiao": self.zhu_pian_jiao,
             "qianJiao": self.qian_jiao,
+            "elastic_modulus": self.elastic_modulus,
+            "overhang_length": self.overhang_length,
         }
 
     def __repr__(self) -> str:

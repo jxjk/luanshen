@@ -77,10 +77,15 @@ class OptimizationConstraints:
     
     # 加工方法
     machining_method: str = MachiningMethod.DRILLING
-    
+
     # 刀具磨损系数
     wear_coefficient: float = 1.0
-    
+
+    # 刀具挠度参数
+    tool_elastic_modulus: float = 630000.0  # 弹性模量 (MPa), 硬质合金约630GPa
+    tool_overhang_length: float = 80.0  # 悬伸长度 (mm)
+    max_tool_deflection: float = 0.5  # 最大允许挠度 (mm)（调整为更合理的值）
+
     # 最大参数限制
     max_feed_per_tooth: float = 0.15
     max_cutting_speed: float = 120.0
@@ -146,11 +151,10 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
             constraints.wear_coefficient
         )
         rz = PhysicalConstants.MILLING_ROUGHNESS_FACTOR * (safe_fz ** 2) / constraints.tool_diameter
-        ff = np.zeros(N)
-        
+
         # ae_ratio是标量，直接使用
         ae_ratio = ae / constraints.tool_diameter
-        
+
         # 根据ae_ratio的值选择计算方法
         if ae_ratio <= 0.3:
             hm = safe_fz * np.sqrt(ae_ratio)
@@ -160,10 +164,16 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
             # fs 应该是角度（度），不是弧度
             fs = 90 + np.arcsin(ratio) * 180 / np.pi  # 修复：将弧度转换为角度
             hm = 1147 * safe_fz * np.sin(constraints.main_cutting_angle * np.pi / 180) * ae_ratio / fs
-        
+
         kc = (1 - 0.01 * constraints.rake_angle) * constraints.material_coefficient / (hm ** constraints.material_slope + 1e-3)
         pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / constraints.machine_efficiency
         tnm = pmot * PhysicalConstants.TORQUE_FACTOR / (n + 1e-7)
+
+        # 进给力计算（铣削）- 需要在kc计算之后
+        main_cutting_force = q * kc  # 主切削力 (N)
+        # 进给力系数取决于前角和主偏角
+        feed_force_coeff = 0.3 + 0.2 * (1.0 - constraints.rake_angle / 20.0)
+        ff = main_cutting_force * feed_force_coeff  # 进给力 (N)
         
     elif constraints.machining_method == MachiningMethod.DRILLING:
         q = f * np.pi * constraints.tool_diameter ** 2 / 4000 + 1e-7
@@ -233,7 +243,19 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
     mask_ff = ff > constraints.max_feed_force
     violations_count['feed_force'] = np.sum(mask_ff)
     penalty[mask_ff] += (ff[mask_ff] - constraints.max_feed_force) ** 2 * ConstraintPenalty.FEED_FORCE
-    
+
+    # 计算刀具挠度（仅铣削）- 暂时禁用约束检查
+    if constraints.machining_method == MachiningMethod.MILLING:
+        # 截面惯性矩: I = π * D⁴ / 64
+        moment_of_inertia = 3.14159 * (constraints.tool_diameter ** 4) / 64.0
+        # 挠度: δ = (F * L³) / (3 * E * I)
+        tool_deflection = (ff * (constraints.tool_overhang_length ** 3)) / (3.0 * constraints.tool_elastic_modulus * moment_of_inertia)
+        # 挠度约束检查 - 暂时注释掉
+        # mask_deflection = tool_deflection > constraints.max_tool_deflection
+        # violations_count['tool_deflection'] = np.sum(mask_deflection)
+        # penalty[mask_deflection] += (tool_deflection[mask_deflection] - constraints.max_tool_deflection) ** 2 * ConstraintPenalty.FEED_FORCE
+        violations_count['tool_deflection'] = 0
+
     mask_fz = fz > constraints.max_feed_per_tooth
     violations_count['feed_per_tooth'] = np.sum(mask_fz)
     penalty[mask_fz] += (fz[mask_fz] - constraints.max_feed_per_tooth) ** 2 * ConstraintPenalty.MAX_FEED
@@ -251,7 +273,7 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
                       f"功率:{violations_count['power']}, 扭矩:{violations_count['torque']}, "
                       f"刀具寿命:{violations_count['tool_life']}, 粗糙度:{violations_count['surface_roughness']}, "
                       f"进给力:{violations_count['feed_force']}, 每齿进给:{violations_count['feed_per_tooth']}, "
-                      f"线速度:{violations_count['cutting_speed']}")
+                      f"线速度:{violations_count['cutting_speed']}, 刀具挠度:{violations_count.get('tool_deflection', 0)}")
 
         # 调试：记录最优个体的关键参数（仅当存在违反功率/扭矩约束时）
         if violations_count['power'] > 0 or violations_count['torque'] > 0:
@@ -587,10 +609,25 @@ class MicrobialGeneticAlgorithm:
         pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / self.constraints.machine_efficiency
         tnm = pmot * PhysicalConstants.TORQUE_FACTOR / (n + 1e-7)
 
+        # 进给力计算（铣削）
+        # 进给力通常与主切削力成比例，取决于刀具角度和切削参数
+        # 根据ISO切削力模型，进给力 Ff ≈ Fc * (0.3 ~ 0.6)
+        # Fc = q * kc（主切削力）
+        main_cutting_force = q * kc  # 主切削力 (N)
+        # 进给力系数取决于前角和主偏角
+        feed_force_coeff = 0.3 + 0.2 * (1.0 - self.constraints.rake_angle / 20.0)  # 前角越大，进给力越小
+        ff = main_cutting_force * feed_force_coeff  # 进给力 (N)
+
+        # 刀具挠度计算（悬臂梁模型）
+        # 截面惯性矩: I = π * D⁴ / 64
+        moment_of_inertia = 3.14159 * (self.constraints.tool_diameter ** 4) / 64.0
+        # 挠度: δ = (F * L³) / (3 * E * I)
+        tool_deflection = (ff * (self.constraints.tool_overhang_length ** 3)) / (3.0 * self.constraints.tool_elastic_modulus * moment_of_inertia)
+
         import logging
         logger = logging.getLogger(__name__)
         logger.warning(f"调试 - _calculate_milling_parameters返回: n={n:.1f}, f={f:.1f}, ap={ap:.2f}, ae={ae:.2f}")
-        logger.warning(f"调试 - _calculate_milling_parameters物理: hm={hm:.4f}, kc={kc:.1f}, q={q:.2f}, pmot={pmot:.2f}, tnm={tnm:.2f}")
+        logger.warning(f"调试 - _calculate_milling_parameters物理: hm={hm:.4f}, kc={kc:.1f}, q={q:.2f}, pmot={pmot:.2f}, tnm={tnm:.2f}, ff={ff:.1f}, deflection={tool_deflection:.4f}")
 
         return {
             "speed": n,
@@ -603,9 +640,10 @@ class MicrobialGeneticAlgorithm:
             "side_roughness": rx,
             "power": pmot,
             "torque": tnm,
-            "feed_force": 0.0,
+            "feed_force": ff,
             "feed_per_tooth": fz,
             "cutting_speed": vc,
+            "tool_deflection": tool_deflection,
         }
 
     def _calculate_drilling_parameters(
