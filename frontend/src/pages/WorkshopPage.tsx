@@ -107,8 +107,8 @@ const WorkshopPage: React.FC = () => {
   }
 
   const mockAlarms: Alarm[] = [
-    { id: 1, device_id: 3, alarm_code: 'ALM-001', alarm_level: 'ALARM' as const, alarm_message: '主轴温度过高', status: 'OPEN', created_at: new Date().toISOString() },
-    { id: 2, device_id: 3, alarm_code: 'ALM-002', alarm_level: 'WARNING' as const, alarm_message: '刀具寿命即将到期', status: 'OPEN', created_at: new Date().toISOString() },
+    { id: 1, device_id: 3, alarm_code: 'ALM-001', alarm_level: 'ALARM' as const, alarm_type: 'DEVICE_ALARM', alarm_message: '主轴温度过高', status: 'OPEN', acknowledged_by: null, acknowledged_at: null, resolved_by: null, resolved_at: null, resolution_note: '', created_at: new Date().toISOString() },
+    { id: 2, device_id: 3, alarm_code: 'ALM-002', alarm_level: 'WARNING' as const, alarm_type: 'TOOL_WEAR', alarm_message: '刀具寿命即将到期', status: 'OPEN', acknowledged_by: null, acknowledged_at: null, resolved_by: null, resolved_at: null, resolution_note: '', created_at: new Date().toISOString() },
   ]
 
   useEffect(() => {

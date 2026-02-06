@@ -121,14 +121,14 @@ class ObjectiveWeights:
 # 约束惩罚系数
 class ConstraintPenalty:
     """约束惩罚系数"""
-    POWER = 1e29          # 功率约束惩罚系数
-    TORQUE = 1e29        # 扭矩约束惩罚系数（修复：从1e6改为1e29）
-    TOOL_LIFE = 1e29     # 刀具寿命约束惩罚系数
-    SURFACE_ROUGHNESS = 1e29  # 表面粗糙度约束惩罚系数
-    FEED_FORCE = 1e29    # 进给力约束惩罚系数（修复：从1e6改为1e29）
-    MAX_FEED = 1e29      # 最大进给惩罚系数（修复：从1改为1e29）
-    MAX_SPEED = 1e29     # 最大转速惩罚系数（修复：从1改为1e29）
-    TOOL_DEFLECTION = 1e29  # 刀具挠度约束惩罚系数
+    POWER = 1e6          # 功率约束惩罚系数（减小从1e29到1e6）
+    TORQUE = 1e6        # 扭矩约束惩罚系数（减小从1e29到1e6）
+    TOOL_LIFE = 1e6     # 刀具寿命约束惩罚系数（减小从1e29到1e6）
+    SURFACE_ROUGHNESS = 1e6  # 表面粗糙度约束惩罚系数（减小从1e29到1e6）
+    FEED_FORCE = 1e6    # 进给力约束惩罚系数（减小从1e29到1e6）
+    MAX_FEED = 1e6      # 最大进给惩罚系数（减小从1e29到1e6）
+    MAX_SPEED = 1e6     # 最大转速惩罚系数（减小从1e29到1e6）
+    TOOL_DEFLECTION = 1e6  # 刀具挠度约束惩罚系数（减小从1e29到1e6）
 
 
 # 物理计算常量

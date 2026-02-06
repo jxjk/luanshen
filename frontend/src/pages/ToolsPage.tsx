@@ -209,8 +209,11 @@ const ToolsPage: React.FC = () => {
           <p className="text-muted">管理系统中的刀具参数</p>
         </Col>
         <Col xs="auto" className="d-flex gap-2">
+          <Form.Label htmlFor="tool-search" className="visually-hidden">搜索刀具</Form.Label>
           <Form.Control
             type="text"
+            id="tool-search"
+            name="tool-search"
             placeholder="搜索刀具..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

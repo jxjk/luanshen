@@ -96,7 +96,10 @@ async def optimize_parameters(
 
     # 计算合理的切宽：最大为刀具直径，但不超过策略中的ae
     max_cut_width = min(tool.zhi_jing, strategy.ae)
-    
+
+    # 调试：记录刀具挠度参数
+    logger.info(f"刀具挠度参数: tool.id={tool.id}, overhang_length={tool.overhang_length}, elastic_modulus={tool.elastic_modulus}")
+
     constraints = OptimizationConstraints(
         min_tool_life=strategy.lft_min,
         max_power=machine.pw_max,
@@ -125,8 +128,8 @@ async def optimize_parameters(
 
         # 刀具挠度参数
         tool_elastic_modulus=tool.elastic_modulus if tool.elastic_modulus else 630000.0,
-        tool_overhang_length=tool.overhang_length if tool.overhang_length else 40.0,
-        max_tool_deflection=1.0,  # 最大允许挠度 1.0mm（粗加工）
+        tool_overhang_length=tool.overhang_length if tool.overhang_length else 60.0,  # 使用数据库中的悬伸长度，默认60mm
+        max_tool_deflection=0.15 * tool.zhi_jing,  # 最大允许挠度为刀具直径的15%（精加工）到25%（粗加工）
 
         max_feed_per_tooth=tool.fz_max,
         max_cutting_speed=tool.vc_max,

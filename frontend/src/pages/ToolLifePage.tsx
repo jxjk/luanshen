@@ -497,13 +497,13 @@ const ToolLifePage: React.FC = () => {
               </Table>
 
               <Form.Group className="mt-3">
-                <Form.Label>更换原因</Form.Label>
-                <Form.Select>
-                  <option>刀具寿命到期</option>
-                  <option>加工质量下降</option>
-                  <option>刀具损坏</option>
-                  <option>工艺变更</option>
-                  <option>其他</option>
+                <Form.Label htmlFor="replacement-reason">更换原因</Form.Label>
+                <Form.Select id="replacement-reason" name="replacement-reason">
+                  <option value="expired">刀具寿命到期</option>
+                  <option value="quality">加工质量下降</option>
+                  <option value="damaged">刀具损坏</option>
+                  <option value="process-change">工艺变更</option>
+                  <option value="other">其他</option>
                 </Form.Select>
               </Form.Group>
             </>

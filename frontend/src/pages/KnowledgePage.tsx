@@ -221,8 +221,11 @@ const KnowledgePage: React.FC = () => {
                       <InputGroup.Text>
                         <i className={`bi ${theme.icons.search}`}></i>
                       </InputGroup.Text>
+                      <Form.Label htmlFor="knowledge-search" className="visually-hidden">搜索案例</Form.Label>
                       <Form.Control
                         type="text"
+                        id="knowledge-search"
+                        name="knowledge-search"
                         placeholder="搜索案例标题或标签..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -338,7 +341,7 @@ const KnowledgePage: React.FC = () => {
                       <Row>
                         <Col md={6}>
                           <h6 className="mb-2">
-                            <i className={`bi ${theme.icons.sliders} me-2`}></i>
+                            <i className={`bi bi-sliders me-2`}></i>
                             推荐参数
                           </h6>
                           <Table bordered responsive size="sm">

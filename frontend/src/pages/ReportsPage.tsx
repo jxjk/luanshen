@@ -320,7 +320,7 @@ const ReportsPage: React.FC = () => {
       <Modal show={showGenerateModal} onHide={() => setShowGenerateModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>
-            <i className={`bi ${theme.icons.sliders} me-2`}></i>
+            <i className={`bi bi-sliders me-2`}></i>
             生成报告 - {selectedTemplate?.name}
           </Modal.Title>
         </Modal.Header>
@@ -336,20 +336,22 @@ const ReportsPage: React.FC = () => {
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>报告名称</Form.Label>
+                      <Form.Label htmlFor="report-name">报告名称</Form.Label>
                       <Form.Control
                         type="text"
+                        id="report-name"
+                        name="report-name"
                         defaultValue={`${selectedTemplate.name} - ${new Date().toLocaleDateString('zh-CN')}`}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group className="mb-3">
-                      <Form.Label>报告格式</Form.Label>
-                      <Form.Select>
-                        <option>PDF</option>
-                        <option>Excel</option>
-                        <option>Word</option>
+                      <Form.Label htmlFor="report-format">报告格式</Form.Label>
+                      <Form.Select id="report-format" name="report-format">
+                        <option value="pdf">PDF</option>
+                        <option value="excel">Excel</option>
+                        <option value="word">Word</option>
                       </Form.Select>
                     </Form.Group>
                   </Col>
@@ -435,9 +437,11 @@ const ReportsPage: React.FC = () => {
                 )}
 
                 <Form.Group className="mb-3">
-                  <Form.Label>备注说明</Form.Label>
+                  <Form.Label htmlFor="report-notes">备注说明</Form.Label>
                   <Form.Control
                     as="textarea"
+                    id="report-notes"
+                    name="report-notes"
                     rows={3}
                     placeholder="请输入备注说明（可选）"
                   />

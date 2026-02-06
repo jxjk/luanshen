@@ -243,10 +243,12 @@ const OptimizationPage: React.FC = () => {
               ) : (
                 <Form onSubmit={handleSubmit}>
                   <Form.Group className="mb-3">
-                    <Form.Label>
+                    <Form.Label htmlFor="material-select">
                       材料 <span className="text-danger">*</span>
                     </Form.Label>
                     <Form.Select
+                      id="material-select"
+                      name="material-select"
                       value={formData.material_id}
                       onChange={(e) =>
                         setFormData({ ...formData, material_id: e.target.value })
@@ -267,10 +269,12 @@ const OptimizationPage: React.FC = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>
+                    <Form.Label htmlFor="tool-select">
                       刀具 <span className="text-danger">*</span>
                     </Form.Label>
                     <Form.Select
+                      id="tool-select"
+                      name="tool-select"
                       value={formData.tool_id}
                       onChange={(e) =>
                         setFormData({ ...formData, tool_id: e.target.value })
@@ -291,10 +295,12 @@ const OptimizationPage: React.FC = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>
+                    <Form.Label htmlFor="machine-select">
                       设备 <span className="text-danger">*</span>
                     </Form.Label>
                     <Form.Select
+                      id="machine-select"
+                      name="machine-select"
                       value={formData.machine_id}
                       onChange={(e) =>
                         setFormData({ ...formData, machine_id: e.target.value })
@@ -315,10 +321,12 @@ const OptimizationPage: React.FC = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>
+                    <Form.Label htmlFor="strategy-select">
                       策略 <span className="text-danger">*</span>
                     </Form.Label>
                     <Form.Select
+                      id="strategy-select"
+                      name="strategy-select"
                       value={formData.strategy_id}
                       onChange={(e) =>
                         setFormData({ ...formData, strategy_id: e.target.value })
@@ -360,9 +368,11 @@ const OptimizationPage: React.FC = () => {
                   </div>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>种群大小</Form.Label>
+                    <Form.Label htmlFor="population-size">种群大小</Form.Label>
                     <Form.Control
                       type="number"
+                      id="population-size"
+                      name="population-size"
                       value={formData.population_size}
                       onChange={(e) =>
                         setFormData({
@@ -383,9 +393,11 @@ const OptimizationPage: React.FC = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>迭代次数</Form.Label>
+                    <Form.Label htmlFor="generations">迭代次数</Form.Label>
                     <Form.Control
                       type="number"
+                      id="generations"
+                      name="generations"
                       value={formData.generations}
                       onChange={(e) =>
                         setFormData({
@@ -405,10 +417,12 @@ const OptimizationPage: React.FC = () => {
                   <Row>
                     <Col md={6}>
                       <Form.Group className="mb-3">
-                        <Form.Label>交叉概率</Form.Label>
+                        <Form.Label htmlFor="crossover-rate">交叉概率</Form.Label>
                         <Form.Control
                           type="number"
                           step="0.1"
+                          id="crossover-rate"
+                          name="crossover-rate"
                           value={formData.crossover_rate}
                           onChange={(e) =>
                             setFormData({
@@ -427,10 +441,12 @@ const OptimizationPage: React.FC = () => {
                     </Col>
                     <Col md={6}>
                       <Form.Group className="mb-3">
-                        <Form.Label>变异概率</Form.Label>
+                        <Form.Label htmlFor="mutation-rate">变异概率</Form.Label>
                         <Form.Control
                           type="number"
                           step="0.1"
+                          id="mutation-rate"
+                          name="mutation-rate"
                           value={formData.mutation_rate}
                           onChange={(e) =>
                             setFormData({
@@ -838,12 +854,15 @@ const OptimizationPage: React.FC = () => {
             variant="primary" 
             onClick={() => {
               if (result) {
+                const selectedTool = getSelectedTool();
+                const selectedMachine = getSelectedMachine();
+                const selectedStrategy = getSelectedStrategy();
                 const pdfData = {
                   result,
-                  material: getSelectedMaterial(),
-                  tool: getSelectedTool(),
-                  machine: getSelectedMachine(),
-                  strategy: getSelectedStrategy(),
+                  material: { ...getSelectedMaterial(), id: String(getSelectedMaterial().id) },
+                  tool: { ...selectedTool, ap_max: selectedTool.ap_max || 5.0, daoJianR: selectedTool.daoJianR || 0.0 },
+                  machine: { ...selectedMachine, id: String(selectedMachine.id) },
+                  strategy: { ...selectedStrategy, id: String(selectedStrategy.id) },
                   constraints: getConstraintUsage(result)
                 }
                 PDFService.generateOptimizationReport(pdfData)

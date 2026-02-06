@@ -187,8 +187,11 @@ const MaterialsPage: React.FC = () => {
           <p className="text-muted">管理系统中的材料参数</p>
         </Col>
         <Col xs="auto" className="d-flex gap-2">
+          <Form.Label htmlFor="material-search" className="visually-hidden">搜索材料</Form.Label>
           <Form.Control
             type="text"
+            id="material-search"
+            name="material-search"
             placeholder="搜索材料..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

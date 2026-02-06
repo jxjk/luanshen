@@ -1,0 +1,1 @@
+ALTER TABLE ga_tools.tools ADD COLUMN elastic_modulus FLOAT NULL COMMENT 'Elastic Modulus MPa';

@@ -17,7 +17,7 @@
 ### 核心子系统
 
 #### 1. 参数优化服务（parameter-optimization）
-基于**微生物遗传算法（Microbial Genetic Algorithm）**的智能参数优化系统，用于优化铣削、钻孔、镗孔、车削等加工工艺参数。
+基于**微生物遗传算法（Microbial Genetic Algorithm）**和**DeepSeek AI 集成**的智能参数优化系统，用于优化铣削、钻孔、镗孔、车削等加工工艺参数。
 
 **重构亮点**：
 - ✅ 模块化架构（微服务设计）
@@ -32,6 +32,9 @@
 - ✅ **早停机制**（自适应收敛）
 - ✅ **DNA解码修复**（修复转速偏低、进给偏高、材料去除率不足的问题）
 - ✅ **线速度计算公式修复**（与旧版本保持一致：vc = n * D / 318 + 0.1）
+- ✅ **DeepSeek AI 集成**（智能优化建议和审查分析）✨ NEW
+- ✅ **AI 规划器**（智能设定参数搜索范围）✨ NEW
+- ✅ **AI 审查器**（验证优化结果的物理合理性和安全性）✨ NEW
 
 **算法模块**：
 - `microbial_ga.py` - 微生物遗传算法核心实现
@@ -43,9 +46,23 @@
   - 返回字段：speed, feed, cut_depth, cut_width, cutting_speed, feed_per_tooth, bottom_roughness, side_roughness, power, torque, feed_force, material_removal_rate, tool_life
 - `constraints.py` - 约束条件检查（功率、扭矩、刀具寿命、表面粗糙度等）
 - `objectives.py` - 目标函数（材料去除率最大化）
+- `ai_assisted_optimizer.py` - AI 辅助优化器（集成 AI 规划器、优化算法和 AI 审查器）✨ NEW
+- `ai_planner.py` - AI 规划器（基于刀具供应商参数智能设定搜索范围）✨ NEW
+- `ai_reviewer.py` - AI 审查器（验证优化结果的物理合理性）✨ NEW
+
+**AI 集成模块** ✨ NEW：
+- `services/llm_service.py` - DeepSeek LLM 服务
+  - 智能优化建议生成
+  - 审查分析报告生成
+  - 安全评分和风险评估
+  - 支持异步调用和错误处理
+- `DEEPSEEK_INTEGRATION.md` - DeepSeek 集成文档
+- `test_deepseek.py` - LLM 集成测试脚本
 
 **API 路由**：
 - `/api/v1/optimization/` - 参数优化相关接口
+- `/api/v1/optimization/optimize` - 标准参数优化接口
+- `/api/v1/optimization/ai-optimize` - **AI 辅助参数优化接口**（集成 AI 规划、AI 审查和 LLM 增强）✨ NEW
 - `/api/v1/materials/` - 材料管理
 - `/api/v1/tools/` - 刀具管理
 - `/api/v1/machines/` - 设备管理
@@ -193,10 +210,17 @@ D:\Users\00596\Desktop\工艺数字孪生\
 │
 ├── services/                       # 微服务目录
 │   ├── parameter-optimization/     # 参数优化服务
+│   │   ├── DEEPSEEK_INTEGRATION.md # DeepSeek AI 集成文档 ✨ NEW
+│   │   ├── test_deepseek.py        # LLM 集成测试脚本 ✨ NEW
 │   │   ├── src/algorithms/         # 算法模块
 │   │   │   ├── microbial_ga.py     # 微生物遗传算法（向量化优化）✅ UPDATED
 │   │   │   ├── constraints.py      # 约束条件
-│   │   │   └── objectives.py       # 目标函数
+│   │   │   ├── objectives.py       # 目标函数
+│   │   │   ├── ai_assisted_optimizer.py  # AI 辅助优化器 ✨ NEW
+│   │   │   ├── ai_planner.py       # AI 规划器 ✨ NEW
+│   │   │   └── ai_reviewer.py      # AI 审查器 ✨ NEW
+│   │   ├── src/services/           # 服务模块
+│   │   │   └── llm_service.py      # DeepSeek LLM 服务 ✨ NEW
 │   │   ├── README.md               # 服务文档
 │   │   └── requirements.txt        # Python 依赖
 │   ├── device-monitor/             # 设备监控服务
@@ -300,6 +324,7 @@ D:\Users\00596\Desktop\工艺数字孪生\
 - **python-jose 3.3.0+** - JWT 令牌处理
 - **passlib 1.7.4+** - 密码加密（bcrypt）
 - **python-multipart 0.0.6+** - 多部分表单支持
+- **httpx 0.25.0+** - 异步 HTTP 客户端（用于 LLM API 调用）✨ NEW
 
 #### 参数优化服务特有
 - **NumPy 1.24.0+** - 数值计算库（向量化优化）✅ UPDATED
@@ -848,6 +873,96 @@ python microbialGeneticAlgorithm.py
 - **设备管理**：GET/POST/PUT/DELETE `/api/v1/machines/`
 - **策略管理**：GET/POST/PUT/DELETE `/api/v1/strategies/`
 
+### AI 辅助优化 API（端口 5007）✨ NEW
+
+#### POST /api/v1/optimization/ai-optimize
+AI 辅助参数优化（集成 AI 规划、AI 审查和 LLM 增强）
+
+**查询参数**：
+- `enable_ai_planning`: 是否启用 AI 规划（默认 True）
+- `enable_ai_review`: 是否启用 AI 审查（默认 True）
+- `enable_llm`: 是否启用 LLM 增强（默认 True，需要配置 DEEPSEEK_API_KEY）
+
+**请求体**：
+```json
+{
+  "material_id": "P1",
+  "tool_id": "1",
+  "machine_id": "1",
+  "strategy_id": "1",
+  "population_size": 10240,
+  "generations": 200,
+  "crossover_rate": 0.6,
+  "mutation_rate": 0.3
+}
+```
+
+**响应**：
+```json
+{
+  "success": true,
+  "message": "AI 规划已完成；AI 审查评分：85.5/100",
+  "result": {
+    "speed": 3200.0,
+    "feed": 640.0,
+    "cut_depth": 2.5,
+    "cut_width": 25.0,
+    "cutting_speed": 251.33,
+    "feed_per_tooth": 0.1,
+    "bottom_roughness": 1.6,
+    "side_roughness": 3.2,
+    "power": 5.2,
+    "torque": 15.5,
+    "feed_force": 1200,
+    "material_removal_rate": 160.0,
+    "tool_life": 120.0,
+    "fitness": 0.987654
+  },
+  "ai_planning": {
+    "search_range": {
+      "speed": {"min": 2000, "max": 4000},
+      "feed": {"min": 400, "max": 800},
+      "cut_depth": {"min": 1.5, "max": 3.5}
+    },
+    "reason": "基于刀具供应商推荐参数和材料特性，优化搜索范围...",
+    "safety_factor": 0.85,
+    "suggestions": {
+      "speed": "材料硬度较高，建议降低转速以提高刀具寿命",
+      "feed": "硬质合金刀具可承受较高进给，建议在推荐范围内选择较大值",
+      "general": "优化参数基本合理，建议在实际加工中根据情况进行微调",
+      "risks": "请注意监控刀具磨损情况，定期检查加工质量"
+    }
+  },
+  "ai_review": {
+    "passed": true,
+    "safety_score": 85.5,
+    "overall_assessment": "存在警告：参数基本合理，但有改进空间",
+    "summary": {
+      "safe": 6,
+      "warning": 2,
+      "error": 0,
+      "critical": 0
+    },
+    "items": [
+      {
+        "check": "功率约束",
+        "status": "safe",
+        "value": 5.2,
+        "limit": 15.0,
+        "message": "功率使用率 34.7%，在安全范围内"
+      }
+    ],
+    "llm_analysis": "【参数优化审查报告】\n\n一、安全性分析..."
+  }
+}
+```
+
+**工作流程**：
+1. **AI 规划**：基于刀具供应商参数、材料特性和机床能力，智能设定参数搜索范围
+2. **遗传算法优化**：在规划的搜索范围内执行优化
+3. **AI 审查**：验证优化结果的物理合理性和安全性
+4. **LLM 增强**：使用 DeepSeek 大模型生成智能优化建议和审查分析（可选）
+
 ### 设备监控 API（端口 5008）
 
 #### WebSocket /ws/device/{device_id}
@@ -1004,6 +1119,15 @@ ws.onmessage = (event) => {
 3. **早停机制**：连续无改进时提前终止，默认50代
 4. **返回字段**：必须包含 speed, feed, cut_depth, cut_width 字段
 
+### DeepSeek AI 集成 ✨ NEW
+1. **环境变量配置**：需要设置 `DEEPSEEK_API_KEY` 环境变量才能使用 LLM 功能
+2. **可选功能**：可以通过 `enable_llm=false` 参数禁用 LLM 功能，使用规则建议
+3. **网络要求**：需要能够访问 DeepSeek API 服务器（https://api.deepseek.com/v1）
+4. **性能影响**：LLM 调用会增加响应时间（约 2-5 秒），建议在生产环境中根据需求启用
+5. **测试验证**：运行 `python test_deepseek.py` 可以验证 LLM 集成是否正常工作
+6. **安全评分**：AI 审查会返回安全评分（0-100），低于 60 分建议谨慎使用优化结果
+7. **建议质量**：LLM 生成的建议质量受温度参数影响，建议在 0.5-0.8 之间调整
+
 ### API 响应格式
 **重要**：后端API直接返回数据（如 `ToolResponse`、`List[ToolResponse]`），前端服务文件已修复为直接处理后端返回的数据，不再使用 `ApiResponse<T>` 包装格式。
 
@@ -1040,6 +1164,8 @@ ws.onmessage = (event) => {
 - [x] PDF 导出功能实现（参数优化页面支持 PDF 报告导出）✅ NEW
 - [x] NumPy 向量化计算优化（性能提升10x+）✅ UPDATED
 - [x] Nginx 反向代理配置（生产环境支持）✅ UPDATED
+- [x] **DeepSeek AI 集成**（AI 规划器、AI 审查器、LLM 智能建议）✨ NEW
+- [x] **AI 辅助优化 API**（/api/v1/optimization/ai-optimize）✨ NEW
 - [ ] RBAC 权限管理（待开发）
 - [ ] 报告自动生成（PDF 导出已实现，待扩展更多报告模板）
 - [ ] SPC控制图数据集成（需后端API支持）
@@ -1073,6 +1199,7 @@ ws.onmessage = (event) => {
 - `DEPLOYMENT.md` - 部署文档
 - `BATCH_FILES.md` - 批处理文件说明
 - `frontend/PDF导出功能说明.md` - PDF 导出功能详细说明 ✨ NEW
+- `services/parameter-optimization/DEEPSEEK_INTEGRATION.md` - DeepSeek AI 集成文档 ✨ NEW
 - `services/parameter-optimization/README.md` - 参数优化服务文档
 - `services/device-monitor/README.md` - 设备监控服务文档
 - `services/alarm-management/README.md` - 报警管理服务文档
@@ -1275,6 +1402,76 @@ A: 请检查：
 4. 优化结果是否成功生成
 5. 浏览器是否允许下载文件
 
+### AI 集成相关 ✨ NEW
+
+**Q: 如何启用 DeepSeek AI 功能？**
+A: 需要配置 `DEEPSEEK_API_KEY` 环境变量：
+```batch
+REM Windows CMD
+set DEEPSEEK_API_KEY=your_deepseek_api_key_here
+
+REM PowerShell
+$env:DEEPSEEK_API_KEY="your_deepseek_api_key_here"
+
+REM Linux/Mac
+export DEEPSEEK_API_KEY="your_deepseek_api_key_here"
+```
+
+**Q: 如何获取 DeepSeek API Key？**
+A:
+1. 访问 DeepSeek 控制台：https://platform.deepseek.com/console
+2. 注册/登录账号
+3. 在 API Keys 页面创建新的 API Key
+4. 复制 API Key 并配置到环境变量中
+
+**Q: AI 辅助优化和标准优化有什么区别？**
+A: AI 辅助优化包含以下增强功能：
+1. **AI 规划**：智能设定参数搜索范围，提高优化效率
+2. **AI 审查**：验证优化结果的物理合理性和安全性
+3. **LLM 建议**：生成智能优化建议和审查分析报告
+4. **安全评分**：提供 0-100 的安全评分，评估优化结果可靠性
+
+**Q: 如何禁用 LLM 功能？**
+A: 有两种方式：
+1. 在 API 调用时设置 `enable_llm=false` 参数
+2. 不设置 `DEEPSEEK_API_KEY` 环境变量（系统会自动降级）
+
+**Q: LLM 调用失败怎么办？**
+A: 请检查：
+1. `DEEPSEEK_API_KEY` 是否正确设置
+2. 网络连接是否正常（需要访问 https://api.deepseek.com/v1）
+3. API Key 是否有足够的额度
+4. 查看服务日志：`logs/app.log`
+5. 运行测试脚本：`python test_deepseek.py`
+
+**Q: AI 审查评分低于 60 分怎么办？**
+A: 建议采取以下措施：
+1. 检查优化参数是否合理（转速、进给、切深、切宽）
+2. 查看具体的审查项（safe、warning、error、critical）
+3. 考虑调整刀具、材料或机床参数
+4. 重新运行优化，可能需要调整算法参数
+5. 咨询工艺专家进行人工审核
+
+**Q: 如何测试 DeepSeek 集成是否正常？**
+A: 运行测试脚本：
+```bash
+cd services/parameter-optimization
+python test_deepseek.py
+```
+
+**Q: LLM 功能会影响优化性能吗？**
+A: 会增加约 2-5 秒的响应时间。如果对性能要求较高，可以：
+1. 使用 `enable_llm=false` 参数禁用 LLM 功能
+2. 只在需要详细分析时启用 LLM
+3. 使用缓存机制（待实现）
+
+**Q: AI 生成的建议不准确怎么办？**
+A: 可以尝试：
+1. 调整 `DEEPSEEK_TEMPERATURE` 参数（0.5-0.8）
+2. 改进 Prompt 设计（需要修改代码）
+3. 提供更详细的上下文信息
+4. 使用规则建议作为后备方案
+
 ### 算法相关 ✅ UPDATED
 
 **Q: 微生物遗传算法如何工作？**
@@ -1346,8 +1543,8 @@ A: 优化结果包含以下字段：
 
 ---
 
-**文档版本**：v13.0
-**最后更新**：2026-02-05
+**文档版本**：v14.0
+**最后更新**：2026-02-06
 **维护者**：工艺数字孪生项目团队
 
 ## 版本历史
@@ -1367,3 +1564,4 @@ A: 优化结果包含以下字段：
 | v11.0 | 2026-02-04 | 更新 Nginx 反向代理配置（生产环境支持端口80）；修复算法返回字段（添加speed, feed, cut_depth, cut_width）；添加 NumPy 向量化计算优化说明；更新超时配置（120s）；添加算法相关常见问题 |
 | v12.0 | 2026-02-04 | **成功部署到本机 Docker 环境**；修复算法 DNA 解码和线速度计算问题；更新项目部署状态；添加算法验证相关问题；更新所有服务端口映射 |
 | v13.0 | 2026-02-05 | 更新 Python 版本要求（3.9+）；添加 cryptography 依赖；完善项目结构说明；更新部署状态日期；补充 Vite 代理配置文档 |
+| v14.0 | 2026-02-06 | **新增 DeepSeek AI 集成**；添加 AI 规划器、AI 审查器和 LLM 服务；新增 /api/v1/optimization/ai-optimize 接口；添加 httpx 依赖；更新项目结构（AI 相关模块）；完善 AI 集成文档和常见问题 ✨ NEW |

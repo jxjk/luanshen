@@ -319,7 +319,7 @@ class PDFService {
         if (constraint.percentage > 80) fillColor = [255, 152, 0]
         if (constraint.percentage > 95) fillColor = [244, 67, 54]
         
-        pdf.setFillColor(...fillColor)
+        pdf.setFillColor(fillColor[0], fillColor[1], fillColor[2])
         pdf.rect(margin + 45, yPosition - 4, barWidth, 8, 'F')
         
         pdf.setFontSize(10)
@@ -416,7 +416,7 @@ class PDFService {
     yPosition += 15
 
     // Footer
-    const totalPages = pdf.internal.getNumberOfPages()
+    const totalPages = pdf.getNumberOfPages()
     for (let i = 1; i <= totalPages; i++) {
       pdf.setPage(i)
       pdf.setFontSize(9)

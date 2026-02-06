@@ -373,8 +373,11 @@ const FixturesPage: React.FC = () => {
           </p>
         </Col>
         <Col xs="auto" className="d-flex gap-2">
+          <Form.Label htmlFor="fixture-search" className="visually-hidden">搜索夹具</Form.Label>
           <Form.Control
             type="text"
+            id="fixture-search"
+            name="fixture-search"
             placeholder="搜索夹具..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -701,9 +704,11 @@ const FixturesPage: React.FC = () => {
                 <Row>
                   <Col md={4}>
                     <Form.Group className="mb-3">
-                      <Form.Label>长度</Form.Label>
+                      <Form.Label htmlFor="fixture-length">长度</Form.Label>
                       <Form.Control
                         type="number"
+                        id="fixture-length"
+                        name="fixture-length"
                         value={formData.dimensions.length}
                         onChange={(e) => setFormData({
                           ...formData,
@@ -714,9 +719,11 @@ const FixturesPage: React.FC = () => {
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
-                      <Form.Label>宽度</Form.Label>
+                      <Form.Label htmlFor="fixture-width">宽度</Form.Label>
                       <Form.Control
                         type="number"
+                        id="fixture-width"
+                        name="fixture-width"
                         value={formData.dimensions.width}
                         onChange={(e) => setFormData({
                           ...formData,
@@ -727,9 +734,11 @@ const FixturesPage: React.FC = () => {
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
-                      <Form.Label>高度</Form.Label>
+                      <Form.Label htmlFor="fixture-height">高度</Form.Label>
                       <Form.Control
                         type="number"
+                        id="fixture-height"
+                        name="fixture-height"
                         value={formData.dimensions.height}
                         onChange={(e) => setFormData({
                           ...formData,
@@ -743,8 +752,13 @@ const FixturesPage: React.FC = () => {
                 <hr />
 
                 <Form.Group className="mb-3">
-                  <Form.Label>3D模型文件</Form.Label>
-                  <Form.Control type="file" accept=".stp,.step,.iges,.igs" />
+                  <Form.Label htmlFor="fixture-model-file">3D模型文件</Form.Label>
+                  <Form.Control
+                    type="file"
+                    id="fixture-model-file"
+                    name="fixture-model-file"
+                    accept=".stp,.step,.iges,.igs"
+                  />
                   <Form.Text className="text-muted">
                     支持 STEP (.stp, .step) 和 IGES (.iges, .igs) 格式
                   </Form.Text>

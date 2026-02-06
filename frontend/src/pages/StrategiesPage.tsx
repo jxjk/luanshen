@@ -184,8 +184,11 @@ const StrategiesPage: React.FC = () => {
           <p className="text-muted">管理系统中的加工策略</p>
         </Col>
         <Col xs="auto" className="d-flex gap-2">
+          <Form.Label htmlFor="strategy-search" className="visually-hidden">搜索策略</Form.Label>
           <Form.Control
             type="text"
+            id="strategy-search"
+            name="strategy-search"
             placeholder="搜索策略..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

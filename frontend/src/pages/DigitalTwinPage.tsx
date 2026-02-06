@@ -452,19 +452,35 @@ const DigitalTwinPage: React.FC = () => {
           </Alert>
           <Form>
             <Form.Group className="mb-3">
-              <Form.Label>名称</Form.Label>
-              <Form.Control type="text" placeholder="请输入名称" />
+              <Form.Label htmlFor="model-name">名称</Form.Label>
+              <Form.Control 
+                type="text" 
+                id="model-name"
+                name="model-name"
+                placeholder="请输入名称" 
+              />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>3D模型文件</Form.Label>
-              <Form.Control type="file" accept=".stp,.step,.iges,.igs" />
+              <Form.Label htmlFor="model-file">3D模型文件</Form.Label>
+              <Form.Control 
+                type="file" 
+                id="model-file"
+                name="model-file"
+                accept=".stp,.step,.iges,.igs" 
+              />
               <Form.Text className="text-muted">
                 支持 STEP (.stp, .step) 和 IGES (.iges, .igs) 格式
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>说明</Form.Label>
-              <Form.Control as="textarea" rows={3} placeholder="请输入说明信息" />
+              <Form.Label htmlFor="model-description">说明</Form.Label>
+              <Form.Control 
+                as="textarea" 
+                id="model-description"
+                name="model-description"
+                rows={3} 
+                placeholder="请输入说明信息" 
+              />
             </Form.Group>
           </Form>
         </Modal.Body>

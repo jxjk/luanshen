@@ -13,6 +13,7 @@ import {
   ProgressBar,
   Spinner,
   Modal,
+  Table,
 } from 'react-bootstrap'
 import { theme } from '../theme'
 
@@ -63,6 +64,7 @@ const NCSimulationPage: React.FC = () => {
   const [selectedTool, setSelectedTool] = useState('T1')
   const [showSettings, setShowSettings] = useState(false)
   const [simulationSpeed, setSimulationSpeed] = useState(1.0)
+  const [simulationAccuracy, setSimulationAccuracy] = useState('medium')
   const [error, setError] = useState<string | null>(null)
 
   const machines = [
@@ -228,9 +230,11 @@ const NCSimulationPage: React.FC = () => {
             </Card.Header>
             <Card.Body>
               <Form.Group className="mb-3">
-                <Form.Label>选择文件</Form.Label>
+                <Form.Label htmlFor="gcode-file">选择文件</Form.Label>
                 <Form.Control
                   type="file"
+                  id="gcode-file"
+                  name="gcode-file"
                   accept=".nc,.gcode,.txt"
                   onChange={handleFileUpload}
                 />
@@ -240,8 +244,10 @@ const NCSimulationPage: React.FC = () => {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>选择机床</Form.Label>
+                <Form.Label htmlFor="machine-select">选择机床</Form.Label>
                 <Form.Select
+                  id="machine-select"
+                  name="machine-select"
                   value={selectedMachine}
                   onChange={(e) => setSelectedMachine(e.target.value)}
                 >
@@ -254,8 +260,10 @@ const NCSimulationPage: React.FC = () => {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>刀具</Form.Label>
+                <Form.Label htmlFor="tool-select">刀具</Form.Label>
                 <Form.Select
+                  id="tool-select"
+                  name="tool-select"
                   value={selectedTool}
                   onChange={(e) => setSelectedTool(e.target.value)}
                 >
@@ -420,61 +428,57 @@ const NCSimulationPage: React.FC = () => {
               </Tabs>
             </Card.Header>
             <Card.Body className="p-0">
-              <Tabs.Content>
-                <Tabs.Pane active>
-                  {/* 3D视图区域 */}
+              {/* 3D视图区域 */}
+              <div
+                style={{
+                  height: '550px',
+                  backgroundColor: '#1e1e1e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                }}
+              >
+                {!gcodeContent ? (
+                  <div className="text-center text-white">
+                    <i className="bi bi-boxes display-1 text-secondary mb-3"></i>
+                    <h4 className="text-muted">等待G代码</h4>
+                    <p className="text-muted">请上传G代码文件开始仿真</p>
+                  </div>
+                ) : simulating ? (
+                  <div className="text-center text-white">
+                    <Spinner animation="border" variant="primary" />
+                    <p className="mt-2">仿真中...</p>
+                  </div>
+                ) : (
+                  <div className="text-center text-white">
+                    <i className="bi bi-check-circle display-1 text-success mb-3"></i>
+                    <h4>仿真完成</h4>
+                    <p className="text-muted">3D视图将在此显示仿真结果</p>
+                  </div>
+                )}
+
+                {/* 坐标显示 */}
+                {gcodeContent && (
                   <div
                     style={{
-                      height: '550px',
-                      backgroundColor: '#1e1e1e',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
+                      position: 'absolute',
+                      bottom: '10px',
+                      left: '10px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                      padding: '10px',
+                      borderRadius: '4px',
+                      color: 'white',
                     }}
                   >
-                    {!gcodeContent ? (
-                      <div className="text-center text-white">
-                        <i className="bi bi-boxes display-1 text-secondary mb-3"></i>
-                        <h4 className="text-muted">等待G代码</h4>
-                        <p className="text-muted">请上传G代码文件开始仿真</p>
-                      </div>
-                    ) : simulating ? (
-                      <div className="text-center text-white">
-                        <Spinner animation="border" variant="primary" />
-                        <p className="mt-2">仿真中...</p>
-                      </div>
-                    ) : (
-                      <div className="text-center text-white">
-                        <i className="bi bi-check-circle display-1 text-success mb-3"></i>
-                        <h4>仿真完成</h4>
-                        <p className="text-muted">3D视图将在此显示仿真结果</p>
-                      </div>
-                    )}
-
-                    {/* 坐标显示 */}
-                    {gcodeContent && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '10px',
-                          left: '10px',
-                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                          padding: '10px',
-                          borderRadius: '4px',
-                          color: 'white',
-                        }}
-                      >
-                        <div>X: {parsedBlocks[currentBlock - 1]?.x?.toFixed(3) || '---'}</div>
-                        <div>Y: {parsedBlocks[currentBlock - 1]?.y?.toFixed(3) || '---'}</div>
-                        <div>Z: {parsedBlocks[currentBlock - 1]?.z?.toFixed(3) || '---'}</div>
-                        <div>F: {parsedBlocks[currentBlock - 1]?.feed || '---'}</div>
-                        <div>S: {parsedBlocks[currentBlock - 1]?.spindle || '---'}</div>
-                      </div>
-                    )}
+                    <div>X: {parsedBlocks[currentBlock - 1]?.x?.toFixed(3) || '---'}</div>
+                    <div>Y: {parsedBlocks[currentBlock - 1]?.y?.toFixed(3) || '---'}</div>
+                    <div>Z: {parsedBlocks[currentBlock - 1]?.z?.toFixed(3) || '---'}</div>
+                    <div>F: {parsedBlocks[currentBlock - 1]?.feed || '---'}</div>
+                    <div>S: {parsedBlocks[currentBlock - 1]?.spindle || '---'}</div>
                   </div>
-                </Tabs.Pane>
-              </Tabs.Content>
+                )}
+              </div>
             </Card.Body>
           </Card>
 
@@ -489,8 +493,8 @@ const NCSimulationPage: React.FC = () => {
                 <Table striped bordered hover size="sm">
                   <thead>
                     <tr>
-                      <th width="60">行号</th>
-                      <th width="100">类型</th>
+                      <th style={{ width: '60px' }}>行号</th>
+                      <th style={{ width: '100px' }}>类型</th>
                       <th>代码</th>
                     </tr>
                   </thead>
@@ -536,8 +540,10 @@ const NCSimulationPage: React.FC = () => {
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>仿真速度</Form.Label>
+                  <Form.Label htmlFor="simulation-speed">仿真速度</Form.Label>
                   <Form.Select
+                    id="simulation-speed"
+                    name="simulation-speed"
                     value={simulationSpeed}
                     onChange={(e) => setSimulationSpeed(Number(e.target.value))}
                   >
@@ -550,27 +556,43 @@ const NCSimulationPage: React.FC = () => {
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>碰撞检测精度</Form.Label>
-                  <Form.Select>
-                    <option>高精度</option>
-                    <option>中精度</option>
-                    <option>低精度（快速）</option>
+                  <Form.Label htmlFor="simulation-accuracy">仿真精度</Form.Label>
+                  <Form.Select
+                    id="simulation-accuracy"
+                    name="simulation-accuracy"
+                    value={simulationAccuracy}
+                    onChange={(e) => setSimulationAccuracy(e.target.value)}
+                  >
+                    <option value="high">高精度</option>
+                    <option value="medium">中精度</option>
+                    <option value="low">低精度（快速）</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
             </Row>
 
             <Form.Group className="mb-3">
-              <Form.Label>安全高度</Form.Label>
-              <Form.Control type="number" defaultValue="50" />
+              <Form.Label htmlFor="safe-height">安全高度</Form.Label>
+              <Form.Control 
+                type="number" 
+                id="safe-height"
+                name="safe-height"
+                defaultValue="50" 
+              />
               <Form.Text className="text-muted">
                 快速移动时的最小Z轴高度（mm）
               </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">
-              <Form.Label>进给速度倍率</Form.Label>
-              <Form.RangeInput min={10} max={150} defaultValue={100} />
+              <Form.Label htmlFor="feed-rate-multiple">进给速度倍率</Form.Label>
+              <Form.Range 
+                min={10} 
+                max={150} 
+                defaultValue={100} 
+                id="feed-rate-multiple"
+                name="feed-rate-multiple"
+              />
               <div className="d-flex justify-content-between">
                 <small>10%</small>
                 <small>150%</small>

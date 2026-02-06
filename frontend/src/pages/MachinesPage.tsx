@@ -189,8 +189,11 @@ const MachinesPage: React.FC = () => {
           <p className="text-muted">管理系统中的设备参数</p>
         </Col>
         <Col xs="auto" className="d-flex gap-2">
+          <Form.Label htmlFor="machine-search" className="visually-hidden">搜索设备</Form.Label>
           <Form.Control
             type="text"
+            id="machine-search"
+            name="machine-search"
             placeholder="搜索设备..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

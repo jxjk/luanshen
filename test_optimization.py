@@ -4,10 +4,10 @@
 import requests
 import json
 
-# 测试数据
+# 测试数据 - 使用刀具2（Φ35mm牛鼻刀）
 test_data = {
     "material_id": "P15",
-    "tool_id": "1",
+    "tool_id": "2",
     "machine_id": "1",
     "strategy_id": "1",
     "population_size": 1024,  # 减少种群大小以加快测试

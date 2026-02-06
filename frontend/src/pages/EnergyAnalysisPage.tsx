@@ -189,6 +189,8 @@ const EnergyAnalysisPage: React.FC = () => {
         </Col>
         <Col xs="auto" className="d-flex gap-2">
           <Form.Select
+            id="period-selector"
+            name="period-selector"
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
             style={{ width: '150px' }}

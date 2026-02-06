@@ -98,7 +98,7 @@ const QualityPage: React.FC = () => {
       dimensions: [
         { name: '长度A', nominal: 100, actual: 100.06, tolerance: '±0.05', result: 'fail' },
         { name: '宽度B', nominal: 50, actual: 50.02, tolerance: '±0.03', result: 'pass' },
-        { name: '高度C', nominal: 25, actual: 25.03, tolerance: '±0.02', result: 'warning' },
+        { name: '高度C', nominal: 25, actual: 25.03, tolerance: '±0.02', result: 'fail' },
         { name: '孔径D', nominal: 20, actual: 20.04, tolerance: 'H7', result: 'pass' },
       ],
       overallStatus: 'fail',
@@ -307,11 +307,11 @@ const QualityPage: React.FC = () => {
                     <Card>
                       <Card.Header>控制图类型</Card.Header>
                       <Card.Body>
-                        <Form.Select>
-                          <option>Xbar-R 控制图</option>
-                          <option>Xbar-S 控制图</option>
-                          <option>I-MR 控制图</option>
-                          <option>P 控制图</option>
+                        <Form.Select id="chart-type" name="chart-type">
+                          <option value="xbar-r">Xbar-R 控制图</option>
+                          <option value="xbar-s">Xbar-S 控制图</option>
+                          <option value="i-mr">I-MR 控制图</option>
+                          <option value="p-chart">P 控制图</option>
                         </Form.Select>
                       </Card.Body>
                     </Card>
@@ -320,9 +320,9 @@ const QualityPage: React.FC = () => {
                     <Card>
                       <Card.Header>控制参数</Card.Header>
                       <Card.Body>
-                        <Form.Select>
-                          <option>长度A</option>
-                          <option>宽度B</option>
+                        <Form.Select id="control-parameter" name="control-parameter">
+                          <option value="length-a">长度A</option>
+                          <option value="width-b">宽度B</option>
                           <option>高度C</option>
                           <option>孔径D</option>
                         </Form.Select>

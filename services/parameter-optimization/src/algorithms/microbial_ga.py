@@ -83,13 +83,13 @@ class OptimizationConstraints:
 
     # 刀具挠度参数
     tool_elastic_modulus: float = 630000.0  # 弹性模量 (MPa), 硬质合金约630GPa
-    tool_overhang_length: float = 80.0  # 悬伸长度 (mm)
-    max_tool_deflection: float = 0.5  # 最大允许挠度 (mm)（调整为更合理的值）
+    tool_overhang_length: float = 60.0  # 悬伸长度 (mm) - 调整为更常见的60mm
+    max_tool_deflection: float = 0.15  # 最大允许挠度 (mm) - 调整为刀具直径的15%
 
     # 最大参数限制
     max_feed_per_tooth: float = 0.15
     max_cutting_speed: float = 120.0
-    max_cut_depth: float = 0.68
+    max_cut_depth: float = 5.0  # 最大切深调整为5mm（更合理）
 
 
 def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.ndarray:
@@ -246,25 +246,27 @@ def evaluate_vectorized(population: np.ndarray, constraints_dict: Dict) -> np.nd
     violations_count['feed_force'] = np.sum(mask_ff)
     penalty[mask_ff] += (ff[mask_ff] - constraints.max_feed_force) ** 2 * ConstraintPenalty.FEED_FORCE
 
-    # 计算刀具挠度（仅铣削）- 启用约束检查
+    # 计算刀具挠度（仅铣削）- 已优化约束检查
     if constraints.machining_method == MachiningMethod.MILLING:
-        # 截面惯性矩: I = π * D⁴ / 64
+        # 截面惯性矩: I = π * D⁴ / 64 (mm⁴)
         moment_of_inertia = 3.14159 * (constraints.tool_diameter ** 4) / 64.0
         # 挠度: δ = (F * L³) / (3 * E * I)
+        # 注意：E的单位是MPa，需要转换为N/mm²，F的单位是N，L的单位是mm
         tool_deflection = (ff * (constraints.tool_overhang_length ** 3)) / (3.0 * constraints.tool_elastic_modulus * moment_of_inertia)
         # 挠度约束检查 - 使用约束中的max_tool_deflection
         mask_deflection = tool_deflection > constraints.max_tool_deflection
         violations_count['tool_deflection'] = np.sum(mask_deflection)
-        penalty[mask_deflection] += (tool_deflection[mask_deflection] - constraints.max_tool_deflection) ** 2 * ConstraintPenalty.FEED_FORCE
+        # 使用较低的惩罚权重，避免过度限制切深
+        penalty[mask_deflection] += (tool_deflection[mask_deflection] - constraints.max_tool_deflection) ** 2 * ConstraintPenalty.FEED_FORCE * 0.5
 
         # 调试：记录挠度参数
         if np.sum(mask_deflection) > 0:
             import logging
             logger = logging.getLogger(__name__)
             max_deflection_idx = np.argmax(tool_deflection)
-            logger.warning(f"挠度调试: L={constraints.tool_overhang_length:.1f}, E={constraints.tool_elastic_modulus:.0f}, "
-                          f"max_deflection={constraints.max_tool_deflection:.3f}, "
-                          f"ff_max={ff[max_deflection_idx]:.1f}, deflection_max={tool_deflection[max_deflection_idx]:.3f}")
+            logger.warning(f"挠度调试: L={constraints.tool_overhang_length:.1f}mm, E={constraints.tool_elastic_modulus:.0f}MPa, "
+                          f"max_deflection={constraints.max_tool_deflection:.3f}mm, "
+                          f"ff_max={ff[max_deflection_idx]:.1f}N, deflection_max={tool_deflection[max_deflection_idx]:.3f}mm")
 
     mask_fz = fz > constraints.max_feed_per_tooth
     violations_count['feed_per_tooth'] = np.sum(mask_fz)

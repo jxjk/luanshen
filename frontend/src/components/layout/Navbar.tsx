@@ -186,8 +186,8 @@ const AppNavbar: React.FC = () => {
               </Nav.Link>
             </Nav>
 
-            <Button variant="outline-danger" className="w-100">
-              <i className={`bi ${theme.icons.logout} me-2`}></i>
+            <Button variant="outline-danger" className="w-100" as="button">
+              <i className={`bi bi-box-arrow-right me-2`}></i>
               退出登录
             </Button>
           </Offcanvas.Body>

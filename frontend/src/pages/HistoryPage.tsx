@@ -381,17 +381,21 @@ const HistoryPage: React.FC = () => {
           <div className="mb-4 p-3 bg-light rounded">
             <Row>
               <Col md={3}>
-                <Form.Label>搜索</Form.Label>
+                <Form.Label htmlFor="history-search">搜索</Form.Label>
                 <Form.Control
                   type="text"
+                  id="history-search"
+                  name="history-search"
                   placeholder="材料/刀具/设备/用户..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </Col>
               <Col md={2}>
-                <Form.Label>材料</Form.Label>
+                <Form.Label htmlFor="filter-material">材料</Form.Label>
                 <Form.Select
+                  id="filter-material"
+                  name="filter-material"
                   value={filterMaterial}
                   onChange={(e) => setFilterMaterial(e.target.value)}
                 >
@@ -402,17 +406,21 @@ const HistoryPage: React.FC = () => {
                 </Form.Select>
               </Col>
               <Col md={2}>
-                <Form.Label>开始日期</Form.Label>
+                <Form.Label htmlFor="filter-date-start">开始日期</Form.Label>
                 <Form.Control
                   type="datetime-local"
+                  id="filter-date-start"
+                  name="filter-date-start"
                   value={filterDateStart}
                   onChange={(e) => setFilterDateStart(e.target.value)}
                 />
               </Col>
               <Col md={2}>
-                <Form.Label>结束日期</Form.Label>
+                <Form.Label htmlFor="filter-date-end">结束日期</Form.Label>
                 <Form.Control
                   type="datetime-local"
+                  id="filter-date-end"
+                  name="filter-date-end"
                   value={filterDateEnd}
                   onChange={(e) => setFilterDateEnd(e.target.value)}
                 />
