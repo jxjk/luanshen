@@ -617,7 +617,10 @@ class MicrobialGeneticAlgorithm:
         # 单位切削力
         kc = (1 - 0.01 * self.constraints.rake_angle) * self.constraints.material_coefficient / (hm ** self.constraints.material_slope + 1e-3)
         
-        # 功率和扭矩
+        # 功率和扭矩（瓦尔特功率计算公式）
+        # pmot = Q * kc / 60000 / machine_efficiency (Kw)
+        # 备用：山德威克功率计算公式（Sandvik Power Formula）
+        # pmot = AE * ap * f * KC11 / 60037200 / machine_efficiency (Kw)
         pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / self.constraints.machine_efficiency
         tnm = pmot * PhysicalConstants.TORQUE_FACTOR / (n + 1e-7)
 
@@ -725,12 +728,13 @@ class MicrobialGeneticAlgorithm:
         # 单位切削力
         kc = self.constraints.material_coefficient / (h ** self.constraints.material_slope + 1e-7)
         
-        # 功率和扭矩
+        # 功率和扭矩（瓦尔特功率计算公式）
         pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / self.constraints.machine_efficiency
         tnm = pmot * PhysicalConstants.TORQUE_FACTOR / (n + 1e-7)
         
-        # 进给力
-        ff = 0.0
+        # 进给力计算（镗孔）- 参照旧版公式
+        # 进给力与钻孔类似，但受底孔直径影响（切削面积减小）
+        ff = 0.63 * fz * self.constraints.tool_teeth * (self.constraints.tool_diameter - self.constraints.bottom_hole_diameter) * kc / 2
         
         return {
             "speed": n,
@@ -792,6 +796,13 @@ class MicrobialGeneticAlgorithm:
         ff = machining_params["feed_force"]
         if ff > self.constraints.max_feed_force:
             penalty += (ff - self.constraints.max_feed_force) ** 2 * ConstraintPenalty.FEED_FORCE
+        
+        # 单位面积进给力约束（钻孔专用）
+        # 防止钻头折断，限制单位面积进给力不超过 50 MPa
+        if self.constraints.machining_method == MachiningMethod.DRILLING:
+            unit_area_force = ff / ((self.constraints.tool_diameter / 2) ** 2) / 3.14
+            if unit_area_force > 50:
+                penalty += (unit_area_force - 50) ** 2 * ConstraintPenalty.FEED_FORCE
         
         # 每齿进给量约束
         fz = machining_params["feed_per_tooth"]
