@@ -60,18 +60,92 @@ class RedisKeyPrefix:
     DEVICE_SUBSCRIBERS = "device:subscribers:"
     ALARM = "alarm:"
 
-# OPC UA 节点配置（示例）
+# OPC UA 节点配置（真实设备连接示例）
+# 详见文档: docs/deployment/NC设备连接配置指南.md
 OPCUA_NODE_MAPPING = {
+    # FANUC设备示例
     1: {
-        "status": "ns=2;s=Machine1.Status",
-        "x_position": "ns=2;s=Machine1.AxisX.Position",
-        "y_position": "ns=2;s=Machine1.AxisY.Position",
-        "z_position": "ns=2;s=Machine1.AxisZ.Position",
-        "spindle_speed": "ns=2;s=Machine1.Spindle.Speed",
-        "feed_rate": "ns=2;s=Machine1.Feed.Rate",
-        "load": "ns=2;s=Machine1.Load.Percent",
-        "alarm_code": "ns=2;s=Machine1.Alarm.Code",
-        "alarm_message": "ns=2;s=Machine1.Alarm.Message",
+        "device_name": "FANUC_5AX_VM",
+        "controller_type": "FANUC",
+        "server_url": "opc.tcp://192.168.1.100:4840",
+        "description": "FANUC Series 30i-MB 五轴加工中心",
+        "status": "ns=2;s=Channel1.Stat.Mode",
+        "x_position": "ns=2;s=AxisX.Act.Position",
+        "y_position": "ns=2;s=AxisY.Act.Position",
+        "z_position": "ns=2;s=AxisZ.Act.Position",
+        "spindle_speed": "ns=2;s=Spindle.Act.Speed",
+        "feed_rate": "ns=2;s=Channel1.Stat.Feed",
+        "load": "ns=2;s=Spindle.Act.Load",
+        "alarm_code": "ns=2;s=Alarm.Code",
+        "alarm_message": "ns=2;s=Alarm.Message",
+    },
+    
+    # SIEMENS设备示例
+    2: {
+        "device_name": "SIEMENS_840D",
+        "controller_type": "SIEMENS",
+        "server_url": "opc.tcp://192.168.1.101:4840",
+        "description": "SIEMENS SINUMERIK 840D sl 五轴加工中心",
+        "status": "ns=2;s=PLC.Blocks.DB10.OperatingState",
+        "x_position": "ns=2;s=PLC.Blocks.DB10.AxisX.ActPos",
+        "y_position": "ns=2;s=PLC.Blocks.DB10.AxisY.ActPos",
+        "z_position": "ns=2;s=PLC.Blocks.DB10.AxisZ.ActPos",
+        "spindle_speed": "ns=2;s=PLC.Blocks.DB10.Spindle.ActSpeed",
+        "feed_rate": "ns=2;s=PLC.Blocks.DB10.Channel.ActFeed",
+        "load": "ns=2;s=PLC.Blocks.DB10.Spindle.ActLoad",
+        "alarm_code": "ns=2;s=PLC.Blocks.DB10.Alarm.Code",
+        "alarm_message": "ns=2;s=PLC.Blocks.DB10.Alarm.Message",
+    },
+    
+    # HEIDENHAIN设备示例
+    3: {
+        "device_name": "HEIDENHAIN_TNC640",
+        "controller_type": "HEIDENHAIN",
+        "server_url": "opc.tcp://192.168.1.102:4840",
+        "description": "HEIDENHAIN TNC 640 五轴加工中心",
+        "status": "ns=2;s=Machine.Status",
+        "x_position": "ns=2;s=AxisX.ActPosition",
+        "y_position": "ns=2;s=AxisY.ActPosition",
+        "z_position": "ns=2;s=AxisZ.ActPosition",
+        "spindle_speed": "ns=2;s=Spindle.ActSpeed",
+        "feed_rate": "ns=2;s=Path.ActFeed",
+        "load": "ns=2;s=Spindle.ActLoad",
+        "alarm_code": "ns=2;s=Alarm.Number",
+        "alarm_message": "ns=2;s=Alarm.Text",
+    },
+    
+    # MITSUBISHI设备示例
+    4: {
+        "device_name": "MITSUBISHI_M800",
+        "controller_type": "MITSUBISHI",
+        "server_url": "opc.tcp://192.168.1.103:4840",
+        "description": "MITSUBISHI M800/M80 Series 五轴加工中心",
+        "status": "ns=2;s=Machine.OperationMode",
+        "x_position": "ns=2;s=AxisX.ActPosition",
+        "y_position": "ns=2;s=AxisY.ActPosition",
+        "z_position": "ns=2;s=AxisZ.ActPosition",
+        "spindle_speed": "ns=2;s=Spindle.ActSpeed",
+        "feed_rate": "ns=2;s=Path.ActFeed",
+        "load": "ns=2;s=Spindle.ActLoad",
+        "alarm_code": "ns=2;s=Alarm.Code",
+        "alarm_message": "ns=2;s=Alarm.Message",
+    },
+    
+    # KEPServerEX网关连接示例
+    5: {
+        "device_name": "FANUC_Via_KEPServer",
+        "controller_type": "FANUC",
+        "server_url": "opc.tcp://192.168.1.200:49380",
+        "description": "通过KEPServerEX网关连接的FANUC设备",
+        "status": "ns=2;s=Channel1.Device1.Tag_Status",
+        "x_position": "ns=2;s=Channel1.Device1.Tag_X",
+        "y_position": "ns=2;s=Channel1.Device1.Tag_Y",
+        "z_position": "ns=2;s=Channel1.Device1.Tag_Z",
+        "spindle_speed": "ns=2;s=Channel1.Device1.Tag_SpindleSpeed",
+        "feed_rate": "ns=2;s=Channel1.Device1.Tag_FeedRate",
+        "load": "ns=2;s=Channel1.Device1.Tag_Load",
+        "alarm_code": "ns=2;s=Channel1.Device1.Tag_AlarmCode",
+        "alarm_message": "ns=2;s=Channel1.Device1.Tag_AlarmMessage",
     },
 }
 

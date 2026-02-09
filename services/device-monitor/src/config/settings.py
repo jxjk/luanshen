@@ -61,8 +61,34 @@ class Settings(BaseSettings):
         return f"amqp://{self.rabbitmq_user}:{self.rabbitmq_password}@{self.rabbitmq_host}:{self.rabbitmq_port}/{self.rabbitmq_vhost}"
     
     # OPC UA Configuration
+    # OPC UA服务器地址（NC设备或OPC UA网关的地址）
+    # 示例：
+    #   - 本地模拟服务器: opc.tcp://localhost:4840
+    #   - 真实FANUC设备: opc.tcp://192.168.1.100:4840
+    #   - KEPServerEX网关: opc.tcp://192.168.1.200:49380
     opcua_server_url: str = "opc.tcp://localhost:4840"
+    
+    # 数据采集间隔（秒）
+    # 推荐值：
+    #   - 0.5秒：高频监控（关键设备）
+    #   - 1.0秒：标准监控（默认）
+    #   - 2.0秒：低频监控（非关键设备）
     opcua_polling_interval: float = 1.0
+    
+    # OPC UA安全策略（可选）
+    # 支持的值: None, Basic128Rsa15, Basic256, Basic256Sha256
+    # 生产环境建议使用 Basic256 或更高
+    opcua_security_policy: str = "None"
+    
+    # OPC UA安全模式（可选）
+    # 支持的值: None, Sign, SignAndEncrypt
+    opcua_security_mode: str = "None"
+    
+    # OPC UA连接超时（秒）
+    opcua_connection_timeout: float = 10.0
+    
+    # OPC UA请求超时（秒）
+    opcua_request_timeout: float = 5.0
     
     # WebSocket Configuration
     ws_heartbeat_interval: int = 30

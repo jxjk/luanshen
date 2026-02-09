@@ -4,7 +4,7 @@
 
 这是一个面向机械加工制造的**工艺数字孪生系统**项目，旨在通过数字化手段实现工艺设计、仿真、执行、监控和优化的全生命周期管理。项目采用**微服务架构**，包含参数优化、设备监控、报警管理和质量追溯四大核心子系统，并配有完整的Web前端界面（16个功能页面）。
 
-**当前状态**：✅ **已成功部署到本机 Docker 环境**，所有9个容器（基础设施+微服务+前端）均已启动并处于健康状态。
+**当前状态**：✅ **已成功部署到本机 Docker 环境**，所有9个容器（基础设施+微服务+前端）均已启动并处于健康状态（2026-02-06 验证）。
 
 ### 项目目标
 
@@ -32,9 +32,14 @@
 - ✅ **早停机制**（自适应收敛）
 - ✅ **DNA解码修复**（修复转速偏低、进给偏高、材料去除率不足的问题）
 - ✅ **线速度计算公式修复**（与旧版本保持一致：vc = n * D / 318 + 0.1）
-- ✅ **DeepSeek AI 集成**（智能优化建议和审查分析）✨ NEW
-- ✅ **AI 规划器**（智能设定参数搜索范围）✨ NEW
-- ✅ **AI 审查器**（验证优化结果的物理合理性和安全性）✨ NEW
+- **DeepSeek AI 集成**（智能优化建议和审查分析）✨ NEW
+  - **AI 规划器**（智能设定参数搜索范围）✨ NEW
+  - **AI 审查器**（验证优化结果的物理合理性和安全性）✨ NEW
+  - **镗孔进给力计算公式恢复**（参照钻孔公式，考虑底孔直径影响）✅ UPDATED
+  - **单位面积进给力约束**（钻孔专用，防止刀具弯曲）✅ UPDATED
+  - **公式来源注释**（瓦尔特/山德威克切削理论）✅ UPDATED
+  - **铣削切屑厚度宽径比判断**（ae ≤ 0.3D 和 ae > 0.3D 分段计算）✅ UPDATED
+  - **刀具挠度约束优化**（悬臂梁模型，使用实际刀具参数）✅ UPDATED
 
 **算法模块**：
 - `microbial_ga.py` - 微生物遗传算法核心实现
@@ -43,7 +48,12 @@
   - 支持早停机制：连续无改进时提前终止
   - DNA解码修复：使用正确的从高位到低位的加权求和方式
   - 线速度计算修复：vc = n * tool_diameter / 318.0 + 0.1（与旧版本一致）
-  - 返回字段：speed, feed, cut_depth, cut_width, cutting_speed, feed_per_tooth, bottom_roughness, side_roughness, power, torque, feed_force, material_removal_rate, tool_life
+  - **镗孔进给力计算**：ff = 0.63 × fz × Z × (D - D_bottom) × kc / 2（考虑底孔直径影响）✅ UPDATED
+  - **单位面积进给力约束**：ff_unit = ff / (π × D² / 4)（钻孔专用，防止刀具弯曲）✅ UPDATED
+  - **铣削切屑厚度宽径比判断**：ae_ratio ≤ 0.3 时使用简化公式，否则使用复杂公式（考虑切削角度）✅ UPDATED
+  - **刀具挠度约束**：δ = (F × L³) / (3 × E × I)，I = π × D⁴ / 64（悬臂梁模型）✅ UPDATED
+  - **公式来源注释**：功率计算参考瓦尔特/山德威克切削理论 ✅ UPDATED
+  - 返回字段：speed, feed, cut_depth, cut_width, cutting_speed, feed_per_tooth, bottom_roughness, side_roughness, power, torque, feed_force, material_removal_rate, tool_life, tool_deflection ✅ UPDATED
 - `constraints.py` - 约束条件检查（功率、扭矩、刀具寿命、表面粗糙度等）
 - `objectives.py` - 目标函数（材料去除率最大化）
 - `ai_assisted_optimizer.py` - AI 辅助优化器（集成 AI 规划器、优化算法和 AI 审查器）✨ NEW
@@ -73,22 +83,38 @@
 
 **核心特性**：
 - ✅ OPC UA 数据采集（AsyncUA）
+- ✅ 支持主流NC控制器（FANUC、SIEMENS、HEIDENHAIN、MITSUBISHI）✅ UPDATED
 - ✅ InfluxDB 时序数据存储（高频数据支持 ≥1kHz）
 - ✅ Redis 缓存支持
 - ✅ RabbitMQ 消息队列
 - ✅ WebSocket 实时推送
 - ✅ 设备状态监控
+- ✅ 真实设备连接支持（替代模拟数据）✅ UPDATED
+
+**支持的NC控制器**：
+- **FANUC**：Series 0i-MD、0i-TD、30i/31i/32i、35i
+- **SIEMENS**：SINUMERIK 828D、840D sl、840D、ONE
+- **HEIDENHAIN**：TNC 640、TNC 620、iTNC 530、TNC 128
+- **MITSUBISHI**：M80/M800系列、E70/E80系列
+- **其他**：MAZAK、HAAS、Brother、Okuma等（通过OPC UA网关）
 
 **模块结构**：
 - `collectors/opcua_collector.py` - OPC UA 数据采集器
 - `stores/influxdb_store.py` - InfluxDB 时序数据存储
 - `websocket/manager.py` - WebSocket 连接管理
 - `models/device_status.py` - 设备状态数据模型
+- `config/constants.py` - 设备节点映射配置 ✅ UPDATED
+- `config/settings.py` - OPC UA 连接配置 ✅ UPDATED
+- `test_opcua_connection.py` - OPC UA 连接测试工具 ✅ NEW
 
 **API 路由**：
 - `/api/v1/device/` - 设备监控相关接口
 - `/api/v1/monitoring/` - 监控统计接口
 - `/ws/device/{device_id}` - WebSocket 实时数据推送
+
+**配置文档**：
+- 📖 [NC设备连接配置指南](docs/deployment/NC设备连接配置指南.md) - 完整的设备连接配置说明
+- 📖 [NC设备快速配置指南](docs/deployment/NC设备快速配置指南.md) - 5分钟快速配置教程
 
 #### 3. 报警管理服务（alarm-management）
 统一管理和分发各类报警信息，支持邮件和短信通知，集成 Redis 和 RabbitMQ 实现高性能报警处理。
@@ -207,6 +233,11 @@ D:\Users\00596\Desktop\工艺数字孪生\
 │   ├── microbialGeneticAlgorithm.py # 微生物遗传算法核心实现
 │   ├── ga_tools.sql                # MySQL 数据库初始化脚本
 │   └── README.md                   # 子项目说明文档
+├── add_elastic_modulus.sql         # 数据库表结构更新：添加弹性模量列 ✅ UPDATED
+├── add_tool_columns.sql            # 数据库表结构更新：添加刀具列（elastic_modulus、overhang_length）✅ UPDATED
+├── fix_parameters.sql              # 数据库参数修复：优化材料参数和机床参数 ✅ UPDATED
+├── test_cut_depth_fix.py           # 切深修复测试脚本 ✨ NEW
+└── test_optimization.py            # 参数优化测试脚本 ✨ NEW
 │
 ├── services/                       # 微服务目录
 │   ├── parameter-optimization/     # 参数优化服务
@@ -1118,6 +1149,12 @@ ws.onmessage = (event) => {
 2. **DNA 编码**：36位编码（speed:16, feed:13, cut_depth:7），所有解码函数必须使用正确的位范围
 3. **早停机制**：连续无改进时提前终止，默认50代
 4. **返回字段**：必须包含 speed, feed, cut_depth, cut_width 字段
+5. **镗孔进给力计算**：ff = 0.63 × fz × Z × (D - D_bottom) × kc / 2，考虑底孔直径影响 ✅ UPDATED
+6. **单位面积进给力约束**：ff_unit = ff / (π × D² / 4)，钻孔专用约束，防止刀具弯曲 ✅ UPDATED
+7. **铣削切屑厚度宽径比判断**：ae_ratio ≤ 0.3 时使用 hm = fz × √(ae_ratio)，否则使用复杂公式（考虑切削角度 fs）✅ UPDATED
+8. **刀具挠度约束**：δ = (F × L³) / (3 × E × I)，I = π × D⁴ / 64，使用实际刀具参数（elastic_modulus、overhang_length）✅ UPDATED
+9. **公式来源注释**：功率计算参考瓦尔特（Walter）和山德威克（Sandvik）切削理论 ✅ UPDATED
+10. **数据库表结构更新**：tools 表新增 elastic_modulus（弹性模量）和 overhang_length（悬伸长度）列 ✅ UPDATED
 
 ### DeepSeek AI 集成 ✨ NEW
 1. **环境变量配置**：需要设置 `DEEPSEEK_API_KEY` 环境变量才能使用 LLM 功能
@@ -1166,6 +1203,13 @@ ws.onmessage = (event) => {
 - [x] Nginx 反向代理配置（生产环境支持）✅ UPDATED
 - [x] **DeepSeek AI 集成**（AI 规划器、AI 审查器、LLM 智能建议）✨ NEW
 - [x] **AI 辅助优化 API**（/api/v1/optimization/ai-optimize）✨ NEW
+- [x] **镗孔进给力计算公式恢复**（参照钻孔公式，考虑底孔直径影响）✅ UPDATED
+- [x] **单位面积进给力约束**（钻孔专用，防止刀具弯曲）✅ UPDATED
+- [x] **公式来源注释**（瓦尔特/山德威克切削理论）✅ UPDATED
+- [x] **铣削切屑厚度宽径比判断**（ae ≤ 0.3D 和 ae > 0.3D 分段计算）✅ UPDATED
+- [x] **刀具挠度约束优化**（悬臂梁模型，使用实际刀具参数）✅ UPDATED
+- [x] **数据库表结构更新**（elastic_modulus 和 overhang_length 列）✅ UPDATED
+- [x] **测试脚本完善**（test_cut_depth_fix.py、test_optimization.py）✅ UPDATED
 - [ ] RBAC 权限管理（待开发）
 - [ ] 报告自动生成（PDF 导出已实现，待扩展更多报告模板）
 - [ ] SPC控制图数据集成（需后端API支持）
@@ -1233,7 +1277,7 @@ REM 或使用 Docker Compose
 docker-compose ps
 ```
 
-当前部署状态（2026-02-05）：
+当前部署状态（2026-02-06 验证）：
 - ✅ MySQL（3307端口）- 健康运行
 - ✅ InfluxDB（8086端口）- 健康运行
 - ✅ Redis（6379端口）- 健康运行
@@ -1305,6 +1349,187 @@ A: 已修复！问题是API响应格式不匹配。前端服务文件已更新�
 1. 后端服务是否正常运行
 2. 浏览器控制台是否有错误信息
 3. 网络请求是否成功（F12开发者工具 → Network）
+
+### NC设备连接相关 ✅ NEW
+
+**Q: 如何连接真实的NC设备？**
+A: 请参考以下文档：
+1. **快速配置**（5分钟）：[NC设备快速配置指南](docs/deployment/NC设备快速配置指南.md)
+2. **完整配置**：[NC设备连接配置指南](docs/deployment/NC设备连接配置指南.md)
+
+基本步骤：
+1. 获取设备IP和OPC UA端口
+2. 配置 `.env` 文件中的 `OPCUA_SERVER_URL`
+3. 在 `constants.py` 中配置设备节点映射
+4. 重启设备监控服务
+5. 通过Web界面或API启动设备监控
+
+**Q: 系统支持哪些NC控制器？**
+A: 系统支持以下主流NC控制器：
+- **FANUC**：Series 0i-MD、0i-TD、30i/31i/32i、35i
+- **SIEMENS**：SINUMERIK 828D、840D sl、840D、ONE
+- **HEIDENHAIN**：TNC 640、TNC 620、iTNC 530、TNC 128
+- **MITSUBISHI**：M80/M800系列、E70/E80系列
+- **其他**：MAZAK、HAAS、Brother、Okuma等（通过OPC UA网关）
+
+详见：[NC设备连接配置指南 - 支持的NC控制器](docs/deployment/NC设备连接配置指南.md#支持的nc控制器)
+
+**Q: 如何测试OPC UA连接？**
+A: 系统提供了OPC UA连接测试工具：
+```bash
+cd services/device-monitor
+
+# 测试FANUC设备
+python test_opcua_connection.py fanuc
+
+# 测试SIEMENS设备
+python test_opcua_connection.py siemens
+
+# 浏览服务器节点
+python test_opcua_connection.py browse opc.tcp://192.168.1.100:4840
+```
+
+详见：[NC设备连接配置指南 - 使用测试工具验证连接](docs/deployment/NC设备连接配置指南.md#使用测试工具验证连接)
+
+**Q: OPC UA连接失败怎么办？**
+A: 常见原因和解决方案：
+
+1. **网络不通**：
+   ```bash
+   ping 192.168.1.100
+   telnet 192.168.1.100 4840
+   ```
+
+2. **防火墙阻止**：
+   ```bash
+   # Windows
+   netsh advfirewall firewall add rule name="OPC UA" dir=in action=allow protocol=TCP localport=4840
+   
+   # Linux
+   sudo ufw allow 4840/tcp
+   ```
+
+3. **节点ID错误**：
+   - 使用测试工具浏览节点：`python test_opcua_connection.py browse opc.tcp://192.168.1.100:4840`
+   - 确认节点ID格式正确（如 `ns=2;s=Channel1.Stat.Mode`）
+
+4. **OPC UA服务器未启动**：
+   - 检查NC控制器是否启用OPC UA功能
+   - 确认服务器地址和端口正确
+
+详见：[NC设备连接配置指南 - 故障排除](docs/deployment/NC设备连接配置指南.md#故障排除)
+
+**Q: 如何获取NC控制器的OPC UA节点ID？**
+A: 有以下几种方法：
+
+1. **使用UaExpert**（免费OPC UA客户端）：
+   - 下载：https://www.unified-automation.com/products/development-tools/uaexpert.html
+   - 连接到OPC UA服务器
+   - 浏览节点树，查看节点ID
+
+2. **使用系统提供的测试工具**：
+   ```bash
+   python test_opcua_connection.py browse opc.tcp://192.168.1.100:4840
+   ```
+
+3. **参考速查表**：
+   - [FANUC节点ID](docs/deployment/NC设备连接配置指南.md#fanuc)
+   - [SIEMENS节点ID](docs/deployment/NC设备连接配置指南.md#siemens)
+   - [HEIDENHAIN节点ID](docs/deployment/NC设备连接配置指南.md#heid enhain)
+
+**Q: 可以连接多台不同品牌的NC设备吗？**
+A: 可以！系统支持同时连接多台不同品牌的NC设备。只需在 `constants.py` 中配置多个设备节点映射即可：
+
+```python
+OPCUA_NODE_MAPPING = {
+    1: {
+        "device_name": "FANUC_VM1",
+        "controller_type": "FANUC",
+        "server_url": "opc.tcp://192.168.1.100:4840",
+        # ... 节点配置
+    },
+    2: {
+        "device_name": "SIEMENS_VM2",
+        "controller_type": "SIEMENS",
+        "server_url": "opc.tcp://192.168.1.101:4840",
+        # ... 节点配置
+    },
+}
+```
+
+**Q: 数据采集间隔如何配置？**
+A: 在 `.env` 文件中配置：
+```bash
+# 采集间隔（秒）
+OPCUA_POLLING_INTERVAL=1.0
+```
+
+推荐值：
+- 0.5秒：高频监控（关键设备）
+- 1.0秒：标准监控（默认）
+- 2.0秒：低频监控（非关键设备）
+
+**Q: 如何查看设备实时数据？**
+A: 有以下几种方式：
+
+1. **Web界面**：
+   - 访问 http://localhost:80
+   - 进入车间视图或设备监控页面
+   - 查看实时数据和状态
+
+2. **API调用**：
+   ```bash
+   # 查看实时数据
+   curl http://localhost:5008/api/v1/monitoring/1/realtime
+   
+   # 查看设备状态
+   curl http://localhost:5008/api/v1/devices/1/status
+   
+   # 查看监控统计
+   curl http://localhost:5008/api/v1/monitoring/stats
+   ```
+
+3. **WebSocket连接**：
+   ```javascript
+   const ws = new WebSocket('ws://localhost:5008/api/v1/ws/monitoring/1');
+   ws.onmessage = (event) => {
+     const data = JSON.parse(event.data);
+     console.log('实时数据:', data);
+   };
+   ```
+
+**Q: 设备数据存储在哪里？**
+A: 设备数据存储在两个地方：
+
+1. **InfluxDB时序数据库**（历史数据）：
+   - 存储所有历史采集数据
+   - 支持高频数据（≥1kHz）
+   - 用于历史数据查询和趋势分析
+
+2. **Redis缓存**（实时状态）：
+   - 存储最新设备状态
+   - 用于快速查询实时数据
+
+3. **MySQL数据库**（设备记录）：
+   - 存储设备基本信息
+   - 存储设备状态快照
+
+**Q: 如何查询历史数据？**
+A: 使用API查询：
+```bash
+# 查询历史数据
+curl -X POST http://localhost:5008/api/v1/monitoring/1/history \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": 1,
+    "start_time": "2026-02-01T00:00:00Z",
+    "end_time": "2026-02-06T23:59:59Z",
+    "measurement": "device_sensor_data",
+    "limit": 1000
+  }'
+```
+
+详见：[NC设备连接配置指南 - 数据流](docs/deployment/NC设备连接配置指南.md#数据流)
 
 **Q: 遗传算法运行很慢怎么办？**
 A: 已通过 NumPy 向量化优化实现10x+性能提升。如需进一步优化，可以减小种群大小和迭代次数：
@@ -1474,6 +1699,242 @@ A: 可以尝试：
 
 ### 算法相关 ✅ UPDATED
 
+## 算法优化详解（v14.0 更新）
+
+### 最新优化内容
+
+#### 1. 镗孔进给力计算公式恢复 ✅ UPDATED
+
+**问题**：镗孔进给力计算缺失，导致镗孔加工参数优化不准确。
+
+**解决方案**：参照钻孔公式，考虑底孔直径影响。
+
+**公式**：
+```
+ff = 0.63 × fz × Z × (D - D_bottom) × kc / 2
+```
+
+**参数说明**：
+- `ff`：进给力 (N)
+- `fz`：每齿进给 (mm)
+- `Z`：刀具齿数
+- `D`：刀具直径 (mm)
+- `D_bottom`：底孔直径 (mm)
+- `kc`：单位切削力 (N/mm²)
+
+**来源**：参照钻孔进给力公式，根据切削面积调整（π × D² - π × D_bottom²）。
+
+#### 2. 单位面积进给力约束（钻孔专用）✅ UPDATED
+
+**问题**：钻孔时刀具容易弯曲，需要添加单位面积进给力约束。
+
+**解决方案**：计算单位面积进给力，防止刀具弯曲。
+
+**公式**：
+```
+ff_unit = ff / (π × D² / 4)
+```
+
+**约束条件**：
+```
+ff_unit ≤ max_feed_force_unit
+```
+
+**参数说明**：
+- `ff_unit`：单位面积进给力 (N/mm²)
+- `ff`：进给力 (N)
+- `D`：刀具直径 (mm)
+
+**来源**：刀具弯曲理论，单位面积进给力超过阈值会导致刀具弯曲。
+
+#### 3. 铣削切屑厚度宽径比判断 ✅ UPDATED
+
+**问题**：铣削切屑厚度计算不准确，导致功率和扭矩计算误差。
+
+**解决方案**：根据切宽与刀具直径的比值（ae_ratio）分段计算切屑厚度。
+
+**公式**：
+
+**当 ae_ratio ≤ 0.3 时**：
+```
+hm = fz × √(ae_ratio)
+```
+
+**当 ae_ratio > 0.3 时**：
+```
+ratio = (ae - 0.5 × D) / (0.5 × D)  # 限制在 [-1, 1] 范围内
+fs = 90 + arcsin(ratio) × 180 / π    # 切削角度（度）
+hm = 1147 × fz × sin(κr × π / 180) × ae_ratio / fs
+```
+
+**参数说明**：
+- `hm`：平均切屑厚度 (mm)
+- `fz`：每齿进给 (mm)
+- `ae_ratio`：切宽与刀具直径的比值（ae / D）
+- `ae`：切宽 (mm)
+- `D`：刀具直径 (mm)
+- `fs`：切削角度（度）
+- `κr`：主偏角（度）
+
+**来源**：瓦尔特（Walter）和山德威克（Sandvik）切削理论，切宽较小时使用简化公式，切宽较大时考虑切削角度影响。
+
+#### 4. 刀具挠度约束优化 ✅ UPDATED
+
+**问题**：刀具挠度约束不准确，使用硬编码参数导致优化结果不理想。
+
+**解决方案**：使用实际刀具参数（elastic_modulus、overhang_length）计算挠度。
+
+**公式**：
+```
+I = π × D⁴ / 64                      # 截面惯性矩 (mm⁴)
+δ = (F × L³) / (3 × E × I)           # 挠度 (mm)
+```
+
+**约束条件**：
+```
+δ ≤ max_tool_deflection              # 最大允许挠度
+```
+
+**参数说明**：
+- `δ`：刀具挠度 (mm)
+- `F`：进给力 (N)
+- `L`：悬伸长度 (mm) - 从数据库读取（overhang_length）
+- `E`：弹性模量 (MPa) - 从数据库读取（elastic_modulus）
+- `I`：截面惯性矩 (mm⁴)
+- `D`：刀具直径 (mm)
+
+**来源**：悬臂梁理论，挠度与进给力、悬伸长度的三次方成正比，与弹性模量、截面惯性矩成反比。
+
+**数据库更新**：
+```sql
+-- 为 tools 表添加刀具参数列
+ALTER TABLE tools ADD COLUMN elastic_modulus FLOAT NULL COMMENT '弹性模量 MPa';
+ALTER TABLE tools ADD COLUMN overhang_length FLOAT NULL COMMENT '悬伸长度 mm';
+```
+
+**参数值**：
+- `elastic_modulus`：硬质合金刀具约 630,000 MPa（630 GPa）
+- `overhang_length`：常用值 60 mm
+- `max_tool_deflection`：0.15 × D（刀具直径的 15%）
+
+#### 5. 公式来源注释 ✅ UPDATED
+
+**问题**：公式来源不明确，难以追溯和验证。
+
+**解决方案**：添加公式来源注释，标注参考的切削理论。
+
+**标注格式**：
+```python
+# 功率和扭矩（瓦尔特功率计算公式）
+# pmot = Q × kc / 60000 / machine_efficiency (Kw)
+# 备用：山德威克功率计算公式（Sandvik Power Formula）
+# pmot = AE × ap × f × KC11 / 60037200 / machine_efficiency (Kw)
+pmot = q * kc * PhysicalConstants.POWER_WATT_TO_KW / constraints.machine_efficiency
+```
+
+**参考来源**：
+- 瓦尔特（Walter）切削理论
+- 山德威克（Sandvik）切削理论
+- 机械加工手册
+
+#### 6. 数据库表结构更新 ✅ UPDATED
+
+**问题**：刀具参数不足，无法准确计算刀具挠度。
+
+**解决方案**：为 tools 表添加弹性模量和悬伸长度列。
+
+**更新脚本**：
+```sql
+-- add_tool_columns.sql
+ALTER TABLE tools ADD COLUMN elastic_modulus FLOAT NULL COMMENT '弹性模量 MPa';
+ALTER TABLE tools ADD COLUMN overhang_length FLOAT NULL COMMENT '悬伸长度 mm';
+```
+
+**参数初始化**：
+```sql
+-- 更新现有刀具参数
+UPDATE tools SET elastic_modulus = 630000, overhang_length = 60 WHERE elastic_modulus IS NULL;
+```
+
+#### 7. 测试脚本完善 ✅ UPDATED
+
+**问题**：缺少自动化测试脚本，难以验证算法优化效果。
+
+**解决方案**：新增测试脚本，验证算法优化效果。
+
+**测试脚本**：
+- `test_cut_depth_fix.py`：测试切深修复效果，验证刀具挠度约束
+- `test_optimization.py`：测试参数优化效果，验证约束是否生效
+
+**使用方法**：
+```bash
+# 测试切深修复
+python test_cut_depth_fix.py
+
+# 测试参数优化
+python test_optimization.py
+```
+
+### 优化效果
+
+**修复前**：
+- 切深过小（< 1.5 mm），无法满足粗加工要求
+- 刀具挠度超出限制，影响加工精度
+- 镗孔进给力计算缺失，镗孔参数不准确
+- 铣削切屑厚度计算误差，功率和扭矩计算不准确
+
+**修复后**：
+- 切深恢复正常（≥ 2.0 mm），满足粗加工要求 ✅
+- 刀具挠度在允许范围内（≤ 0.15 × D）✅
+- 镗孔进给力计算准确，考虑底孔直径影响 ✅
+- 铣削切屑厚度计算准确，根据 ae_ratio 分段计算 ✅
+- 公式来源明确，易于追溯和验证 ✅
+- 数据库表结构完善，支持实际刀具参数 ✅
+
+### 验证方法
+
+**1. 运行测试脚本**：
+```bash
+python test_cut_depth_fix.py
+python test_optimization.py
+```
+
+**2. 检查优化结果**：
+- 切深 ≥ 2.0 mm（粗加工要求）
+- 刀具挠度 ≤ 0.15 × D（刀具直径的 15%）
+- 镗孔进给力包含底孔直径参数
+- 铣削切屑厚度根据 ae_ratio 分段计算
+
+**3. 检查数据库**：
+```sql
+SELECT id, name, diameter, elastic_modulus, overhang_length FROM tools;
+```
+
+**4. 检查代码注释**：
+- 公式来源注释（瓦尔特/山德威克）
+- 参数说明注释
+- 计算步骤注释
+
+### 相关文件
+
+**算法文件**：
+- `services/parameter-optimization/src/algorithms/microbial_ga.py` - 微生物遗传算法核心实现
+- `services/parameter-optimization/src/algorithms/objectives.py` - 目标函数
+
+**数据库脚本**：
+- `add_tool_columns.sql` - 添加刀具参数列
+- `fix_parameters.sql` - 修复材料参数和机床参数
+
+**测试脚本**：
+- `test_cut_depth_fix.py` - 切深修复测试
+- `test_optimization.py` - 参数优化测试
+
+**文档**：
+- `AGENTS.md` - 本文档
+- `DEEPSEEK_INTEGRATION.md` - DeepSeek AI 集成文档
+
+---
+
 **Q: 微生物遗传算法如何工作？**
 A: 算法使用 NumPy 向量化计算实现高性能优化：
 1. **DNA 编码**：36位二进制编码（speed:16, feed:13, cut_depth:7）
@@ -1505,13 +1966,22 @@ A: 可以通过以下方式验证：
 2. 检查线速度计算公式是否为 vc = n * D / 318 + 0.1
 3. 运行优化并检查转速、进给、材料去除率是否合理
 4. 对比新旧版本的优化结果
+5. 运行测试脚本：`python test_cut_depth_fix.py` 和 `python test_optimization.py` ✅ UPDATED
+6. 检查镗孔进给力是否包含底孔直径参数：ff = 0.63 × fz × Z × (D - D_bottom) × kc / 2 ✅ UPDATED
+7. 检查刀具挠度是否使用实际刀具参数：δ = (F × L³) / (3 × E × I) ✅ UPDATED
+8. 检查数据库是否包含 elastic_modulus 和 overhang_length 列 ✅ UPDATED
 
 **Q: 算法修复了哪些问题？** ✨ NEW
 A: 修复了以下关键问题：
 1. **DNA解码错误**：从错误的左移位改为正确的加权求和
 2. **线速度计算错误**：从 vc = n * π * D / 60000 修复为 vc = n * D / 318 + 0.1
 3. **uint8溢出问题**：在加权计算前将 bit 转换为 int 类型
-4. 这些修复解决了转速偏低、进给偏高、材料去除率不足的问题
+4. **镗孔进给力公式缺失**：恢复镗孔进给力计算，参照钻孔公式，考虑底孔直径影响 ✅ UPDATED
+5. **单位面积进给力约束缺失**：添加钻孔专用约束，防止刀具弯曲 ✅ UPDATED
+6. **铣削切屑厚度计算错误**：根据 ae_ratio 分段计算，ae > 0.3D 时使用复杂公式 ✅ UPDATED
+7. **刀具挠度约束不准确**：使用实际刀具参数（elastic_modulus、overhang_length）计算挠度 ✅ UPDATED
+8. **公式来源不明确**：添加公式来源注释（瓦尔特/山德威克切削理论）✅ UPDATED
+9. 这些修复解决了转速偏低、进给偏高、材料去除率不足、切深过小、刀具挠度超出限制等问题
 
 **Q: 如何调整算法参数？**
 A: 可以通过 API 请求或配置文件调整：
@@ -1539,11 +2009,12 @@ A: 优化结果包含以下字段：
 - `feed_force`：进给力 (N)
 - `material_removal_rate`：材料去除率 (cm³/min)
 - `tool_life`：刀具寿命 (min)
+- `tool_deflection`：刀具挠度 (mm) ✅ UPDATED
 - `fitness`：适应度值
 
 ---
 
-**文档版本**：v14.0
+**文档版本**：v15.0
 **最后更新**：2026-02-06
 **维护者**：工艺数字孪生项目团队
 
@@ -1564,4 +2035,5 @@ A: 优化结果包含以下字段：
 | v11.0 | 2026-02-04 | 更新 Nginx 反向代理配置（生产环境支持端口80）；修复算法返回字段（添加speed, feed, cut_depth, cut_width）；添加 NumPy 向量化计算优化说明；更新超时配置（120s）；添加算法相关常见问题 |
 | v12.0 | 2026-02-04 | **成功部署到本机 Docker 环境**；修复算法 DNA 解码和线速度计算问题；更新项目部署状态；添加算法验证相关问题；更新所有服务端口映射 |
 | v13.0 | 2026-02-05 | 更新 Python 版本要求（3.9+）；添加 cryptography 依赖；完善项目结构说明；更新部署状态日期；补充 Vite 代理配置文档 |
-| v14.0 | 2026-02-06 | **新增 DeepSeek AI 集成**；添加 AI 规划器、AI 审查器和 LLM 服务；新增 /api/v1/optimization/ai-optimize 接口；添加 httpx 依赖；更新项目结构（AI 相关模块）；完善 AI 集成文档和常见问题 ✨ NEW |
+| v14.0 | 2026-02-06 | **算法重大优化**：镗孔进给力公式恢复、单位面积进给力约束、公式来源注释（瓦尔特/山德威克）、铣削切屑厚度宽径比判断、刀具挠度约束优化；数据库表结构更新（elastic_modulus 和 overhang_length 列）；新增测试文件（test_cut_depth_fix.py、test_optimization.py）；确认9个容器健康运行 |
+| v15.0 | 2026-02-06 | **NC设备连接功能完善**：新增NC设备连接配置文档和快速配置指南；完善设备节点映射配置（支持FANUC、SIEMENS、HEIDENHAIN、MITSUBISHI等主流控制器）；新增OPC UA连接测试工具（test_opcua_connection.py）；更新设备监控服务配置（constants.py、settings.py）；添加NC设备连接常见问题；支持真实设备替代模拟数据 |
